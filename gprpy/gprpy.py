@@ -190,9 +190,159 @@ class gprpyProfile:
             
             # Initialize previous
             self.initPrevious()
-            
+
+        elif file_ext==".in":
+            """Import b-scan simulation results from gprMAX
+
+            The selected filename is the input file of the gprMax simulation.
+            We also need the output data file for the merged b-scan, which is
+            constructed by removing the file ending, and adding '_merged.out'.
+
+            """
+            print('gprMax importer')
+            import h5py
+            gprmax_input = filename
+            gprmax_output = filename[:-3] + '_merged.out'
+            assert os.path.isfile(gprmax_output), \
+                "No simulation results found: {}".format(gprmax_output)
+
+            def parse_gprmax_input(gprmax_infile):
+                lines = open(gprmax_infile, 'r').readlines()
+                # we are interested in these items that only occur once in the
+                # gprmax input file
+                unique_keys = [
+                    'dx_dy_dz',
+                    'time_window',
+                    'waveform',
+                    'rx',
+                    'hertzian_dipole',
+                    'rx_steps',
+                    'src_steps',
+                ]
+
+                items = {}
+                # entities = []
+                for line in lines:
+                    if line.startswith('#'):
+                        index = line.find(':')
+                        key = line[1:index].strip()
+                        value = line[index + 1:].strip()
+                        # print(key)
+                        # print(value)
+                        # print('')
+                        # entities + [(key, value)]
+                        if key in unique_keys:
+                            items[key] = value
+                return items
+
+            gprmax_settings = parse_gprmax_input(gprmax_input)
+            data_merged = h5py.File(gprmax_output, 'r')
+            traces = data_merged['rxs']['rx1']['Ez'][:]
+
+            d_rx = float(gprmax_settings['rx_steps'].split(' ')[0])
+            d_tx = float(gprmax_settings['src_steps'].split(' ')[0])
+            assert np.abs(d_rx) == np.abs(d_tx), \
+                "We assume equal steps for rx and tx"
+            start_tx = float(gprmax_settings['hertzian_dipole'].split(' ')[1])
+            start_rx = float(gprmax_settings['rx'].split(' ')[0])
+
+            # start point is the center point between rx and tx
+            start_x = min(start_tx, start_rx) + np.abs(start_tx - start_rx) / 2
+            N_traces = traces.shape[1]
+            end_x = start_x + N_traces * d_rx
+            frequency = float(gprmax_settings['waveform'].split(' ')[2])
+
+            self.info = {
+                'system': 'GPRMax Data',
+                'data': '2024-05-23',
+                'N_traces': N_traces,
+                'N_pts_per_trace': traces.shape[0],
+                # ?
+                'TZ_at_pt': 0,
+                'Total_time_window': float(gprmax_settings['time_window']),
+                'Start_pos': start_x,
+                'Final_pos': end_x,
+                'Step_size': d_rx,
+                'Pos_units': 'm',
+                'Freq': frequency,
+                'Antenna_sep': np.abs(start_tx - start_rx),
+            }
+            sec_per_samp = self.info[
+                "Total_time_window"
+            ] / self.info["N_pts_per_trace"]
+            tshift = self.info["TZ_at_pt"] * sec_per_samp
+
+            # times [ns]
+            self.twtt = np.linspace(
+                0,
+                self.info["Total_time_window"],
+                self.info["N_pts_per_trace"]
+            ) - tshift
+            self.twtt /= 1e-9
+
+            # convert to [ns]
+            self.info["Total_time_window"] /= 1e-9
+            # import IPython
+            # IPython.embed()
+
+            # profile positions:
+            # I'm not really sure how to handle this properly.
+            # For profile data, we want the include the center position
+            # For CMP/WARR, we want to include the distance to the center
+            # position
+
+            # For now, check all distances between rx and tx -- if all are the
+            # same, assume this is profile data
+
+            # import IPython
+            # IPython.embed()
+            positions_center = []
+            positions_rx = []
+            positions_tx = []
+            distances = []
+            for i in range(N_traces):
+                rx = start_rx + i * d_rx
+                tx = start_tx + i * d_tx
+                positions_rx += [rx]
+                positions_tx += [tx]
+                distances += [np.abs(tx - rx)]
+                positions_center += [ (rx + tx) / 2 ]
+
+            if np.all(distances == distances[0]):
+                print('Assuming PROFILE data')
+                # assume profile
+                self.profilePos = np.array(positions_x)
+            else:
+                print('Assuming CMP/WARR data')
+                # assume cmp/warr
+                self.profilePos = np.abs(
+                    np.array(positions_center) - np.array(positions_rx)
+                )
+
+            # self.profilePos = np.linspace(
+            #     self.info["Start_pos"],
+            #     self.info["Final_pos"],
+            #     self.info["N_traces"]
+            # )
+
+            self.data = np.matrix(traces)
+
+            self.antsep = self.info["Antenna_sep"] # Set to m in the loading routine
+            self.velocity = None
+            self.depth = None
+            self.maxTopo = None
+            self.minTopo = None
+            self.threeD = None
+            self.data_pretopo = None
+            self.twtt_pretopo = None
+
+            # Initialize previous
+            self.initPrevious()
+
         else:
             print("Can only read dt1, DT1, hd, HD, DZT, dat, GPRhdr, rad, rd3, rd7, and gpr files")
+
+        # print(self.info)
 
     def showHistory(self):
         '''
