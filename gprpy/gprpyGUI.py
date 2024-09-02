@@ -14,6 +14,7 @@ from tkinter import messagebox as mesbox
 import matplotlib as mpl
 mpl.use('TkAgg')
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
 from matplotlib.figure import Figure
 import gprpy.gprpy as gp
 import numpy as np
@@ -39,6 +40,16 @@ class GPRPyApp:
 
     def __init__(self,master):
         self.window = master
+
+        # hold the trace-view window and associated properties
+        self.trace_view = {
+            'twin': None,
+            # trace number to show
+            'trace_nr': 0,
+            'widgets': None,
+            'fig': None,
+            'axes': None,
+        }
 
         # Set up for high-resolution screens
         normscrwidt=1280 #1024
@@ -516,8 +527,250 @@ class GPRPyApp:
                           'settings such as x-range settings, unless \n'
                           'the "print figure" command was used. ')
 
+        TraceButton = tk.Button(
+            text="Show Trace",
+            fg="black",
+            command=lambda : self.show_trace(proj),
+        )
+        TraceButton.config(height = 1, width = 2*halfwid)
+        TraceButton.grid(row=22, column=rightcol, sticky='nsew',columnspan=colsp)
+        self.balloon.bind(
+            TraceButton,
+            'Show a trace'
+        )
 
+    def _show_trace_by_number(self, proj, trace_nr):
+        print('requested trace_nr:', trace_nr)
+        total_nr_of_traces = proj.data.shape[1]
+        if trace_nr < 0:
+            print('< 0')
+            trace_nr = total_nr_of_traces + trace_nr
+            print(trace_nr)
+            if trace_nr >= total_nr_of_traces:
+                # do not try harder
+                print('bad')
+                return
 
+        # always show the largest trace
+        trace_nr = min(trace_nr, total_nr_of_traces - 1)
+        # alternative: wrap around
+        # trace_nr = trace_nr % total_nr_of_traces
+        print('Visualising trace: {}'.format(trace_nr))
+        subdata = np.array(proj.data[:, trace_nr]).squeeze()
+        times = proj.twtt * 1e-9
+        time_delta = times[1] - times[0]
+        # use at least 1e4 data points to get a smooth curve
+        # n = int(max(subdata.size, 1e4))
+        n = subdata.size
+        rfft = np.fft.rfft(
+            subdata,
+            n=n,
+        ).squeeze()
+        rfft_times = np.fft.rfftfreq(
+            n,
+            d=time_delta
+        ).squeeze()
+
+        keep_plot = bool(self.trace_view['var_keep_plot'].get())
+        axes = self.trace_view['axes']
+        figure_canvas = self.trace_view['canvas']
+        fig = self.trace_view['fig']
+        entry_var_trace_nr = self.trace_view['entry_var_trace_nr']
+
+        ax = axes[0]
+        if not keep_plot:
+            ax.cla()
+        ax.plot(
+            times / 1e-9,
+            subdata,
+        )
+        ax.set_xlabel('Time [ns]', fontsize=8)
+        ax.grid()
+        ax.set_ylabel('Signal', fontsize=8)
+
+        ax.set_title(
+            'trace',
+            loc='left',
+            fontsize=8,
+        )
+        ax = axes[1]
+        if not keep_plot:
+            ax.cla()
+        ax.plot(
+            # [Mhz]
+            rfft_times / 1e6,
+            np.abs(rfft)
+        )
+        ax.set_xscale('log')
+        ax.grid()
+
+        self.trace_view['trace_nr'] = trace_nr
+        entry_var_trace_nr.set(int(trace_nr))
+        # import IPython
+        # IPython.embed()
+
+        ax.set_xlabel('Frequency [MHz]', fontsize=8)
+        ax.set_ylabel('|A|~[-]', fontsize=8)
+        ax.set_title(
+            'FFT of trace',
+            loc='left',
+            fontsize=8,
+        )
+
+        for ax in axes:
+            ax.xaxis.set_tick_params(labelsize=8)
+            ax.yaxis.set_tick_params(labelsize=8)
+
+        fig.tight_layout()
+        figure_canvas.draw()
+
+        twin = self.trace_view.get('twin', None)
+
+    def show_trace(self, proj):
+        if getattr(proj, "data", None) is None:
+            print('Need to load data first')
+            return
+        print('Showing trace')
+        trace_view = self.trace_view
+
+        twin = trace_view.get('twin', None)
+        if twin is not None:
+            twin.destroy()
+
+        twin = tk.Toplevel(self.window)
+        twin.resizable(True, True)
+        trace_view['twin'] = twin
+        # twin.transient(self.window)
+        twin.title("Trace View")
+
+        twin.rowconfigure(0, weight=0)
+        twin.rowconfigure(1, weight=1)
+        twin.rowconfigure(2, weight=0)
+
+        for col in range(0, 6):
+            twin.columnconfigure(col, weight=1)
+
+        # controllers
+        label_trace_nr = tk.Label(
+            twin,
+            text='Trace nr:'
+        )
+        entry_var_trace_nr = tk.IntVar(
+            twin,
+            value=-1
+        )
+        entry_trace_nr = tk.Entry(
+            twin,
+            textvariable=entry_var_trace_nr,
+        )
+        entry_trace_nr.bind(
+            '<Return>',
+            lambda event : self._show_trace_by_number(
+                proj,
+                int(entry_var_trace_nr.get())
+            )
+        )
+
+        but_go_to_trace = tk.Button(
+            twin,
+            text='go to trace',
+            command=lambda : self._show_trace_by_number(
+                proj,
+                int(entry_var_trace_nr.get())
+            ),
+        )
+        but_prev = tk.Button(
+            twin,
+            text='prev trace',
+            command=lambda : self._show_trace_by_number(
+                proj, trace_view['trace_nr'] - 1
+            ),
+        )
+        but_next = tk.Button(
+            twin,
+            text='next trace',
+            command=lambda : self._show_trace_by_number(
+                proj, trace_view['trace_nr'] + 1
+            ),
+        )
+        var_keep_plot = tk.IntVar(twin, value=0)
+        check_keep_plot = tk.Checkbutton(
+            twin,
+            text='keep plot',
+            variable=var_keep_plot,
+        )
+
+        fig = Figure()
+        figure_canvas = FigureCanvasTkAgg(fig, twin)
+        toolbar = NavigationToolbar2Tk(figure_canvas, twin, pack_toolbar=False)
+        toolbar.update()
+
+        axes = [
+            fig.add_subplot(2, 1, 1),
+            fig.add_subplot(2, 1, 2),
+        ]
+
+        widgets = {
+            'label': label_trace_nr,
+            'entry_trace_nr': entry_trace_nr,
+            'entry_var_trace_nr': entry_var_trace_nr,
+            'but_prev': but_prev,
+            'but_next': but_next,
+        }
+
+        # TODO destroy properly
+        trace_view['widgets'] = widgets
+        trace_view['canvas'] = figure_canvas
+        trace_view['entry_var_trace_nr'] = entry_var_trace_nr
+        trace_view['var_keep_plot'] = var_keep_plot
+
+        trace_view['fig'] = fig
+        trace_view['axes'] = axes
+
+        # construct the GUI
+        label_trace_nr.grid(
+            column=0,
+            row=0,
+        )
+        entry_trace_nr.grid(
+            column=1,
+            row=0,
+        )
+        but_go_to_trace.grid(
+            column=2,
+            row=0,
+        )
+        but_prev.grid(
+            column=3,
+            row=0,
+        )
+        but_next.grid(
+            column=4,
+            row=0,
+        )
+        check_keep_plot.grid(
+            column=5,
+            row=0,
+        )
+
+        figure_canvas.get_tk_widget().grid(
+            column=0,
+            row=1,
+            columnspan=6,
+            sticky=tk.N+tk.W+tk.S+tk.E,
+        )
+
+        toolbar.grid(
+            column=0,
+            row=2,
+            sticky=tk.N+tk.W,
+            columnspan=6,
+        )
+
+        entry_trace_nr.focus()
+
+        # now draw the trace
+        self._show_trace_by_number(proj, trace_view['trace_nr'])
 
     def undo(self,proj):
         if self.picking:

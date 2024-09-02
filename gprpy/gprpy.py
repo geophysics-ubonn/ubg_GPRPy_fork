@@ -308,6 +308,10 @@ class gprpyProfile:
                 distances += [np.abs(tx - rx)]
                 positions_center += [ (rx + tx) / 2 ]
 
+            print('rx', positions_rx)
+            print('tx', positions_tx)
+            print('centers', positions_center)
+
             if np.all(distances == distances[0]):
                 print('Assuming PROFILE data')
                 # assume profile
@@ -318,6 +322,7 @@ class gprpyProfile:
                 self.profilePos = np.abs(
                     np.array(positions_center) - np.array(positions_rx)
                 )
+                print(self.profilePos)
 
             # self.profilePos = np.linspace(
             #     self.info["Start_pos"],
