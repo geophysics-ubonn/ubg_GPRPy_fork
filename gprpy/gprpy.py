@@ -17,13 +17,13 @@ from pyevtk.hl import gridToVTK
 
 class gprpyProfile:
     '''
-    Ground penetrating radar data processing and visualization class 
+    Ground penetrating radar data processing and visualization class
     for common-offset profiles.
     '''
 
     def __init__(self,filename=None):
         '''
-        Initialization for a gprpyProfile object. Initialization can be 
+        Initialization for a gprpyProfile object. Initialization can be
         empty or with a provided filename for the GPR data.
 
         INPUT:
@@ -31,38 +31,38 @@ class gprpyProfile:
                      .gpr (GPRPy), .DT1 (SnS), .DZT (GSSI), .rd3 (MALA),
                      and ENVI standard BSQ.
         '''
-        
+
         self.history = ["mygpr = gp.gprpyProfile()"]
 
         # Initialize previous for undo
         self.previous = {}
-        
+
         if filename is not None:
-            self.importdata(filename)                 
-        
+            self.importdata(filename)
+
     def importdata(self,filename):
         '''
         Loads .gpr (native GPRPy), .DT1 (Sensors and Software),
         .DZT (GSSI), .GPRhdr (ENVI standard BSQ), .rad (MALA)
         data files and populates all the gprpyProfile fields.
 
-        INPUT: 
-        filename  name of the .gpr, .DT1, dt1, .DZT, .GPRhdr, dat, 
+        INPUT:
+        filename  name of the .gpr, .DT1, dt1, .DZT, .GPRhdr, dat,
                   rd3, or .rad file you want to import.
-                  The header file name and the data file name 
+                  The header file name and the data file name
                   have to be the same!
         '''
-        
+
         file_name, file_ext = os.path.splitext(filename)
-        
+
         if file_ext==".DT1" or file_ext==".HD" or file_ext==".dt1" or file_ext==".hd":
             if file_ext==".DT1" or  file_ext==".HD":
                 self.data=gprIO_DT1.readdt1(file_name + ".DT1")
-                self.info=gprIO_DT1.readdt1Header(file_name + ".HD")  
+                self.info=gprIO_DT1.readdt1Header(file_name + ".HD")
             else:
                 self.data=gprIO_DT1.readdt1(file_name + ".dt1")
                 self.info=gprIO_DT1.readdt1Header(file_name + ".hd")
-            
+
             self.profilePos = np.linspace(self.info["Start_pos"],
                                           self.info["Final_pos"],
                                           self.info["N_traces"])
@@ -73,11 +73,11 @@ class gprpyProfile:
 
             sec_per_samp = self.info["Total_time_window"]/self.info["N_pts_per_trace"]
             tshift = self.info["TZ_at_pt"]*sec_per_samp
-            
+
             self.twtt = np.linspace(0,self.info["Total_time_window"],
                                     self.info["N_pts_per_trace"]) - tshift
 
-            self.antsep = self.info["Antenna_sep"] # Set to m in the loading routine 
+            self.antsep = self.info["Antenna_sep"] # Set to m in the loading routine
             self.velocity = None
             self.depth = None
             self.maxTopo = None
@@ -87,11 +87,11 @@ class gprpyProfile:
             self.twtt_pretopo = None
             # Initialize previous
             self.initPrevious()
-            
+
             # Put what you did in history
             histstr = "mygpr.importdata('%s')" %(filename)
-            self.history.append(histstr)                                
-            
+            self.history.append(histstr)
+
         elif file_ext==".DZT"  or file_ext==".dzt":
 
             self.data, self.info = gprIO_DZT.readdzt(filename)
@@ -104,7 +104,7 @@ class gprpyProfile:
                 self.profilePos = self.info["rhf_position"]+np.linspace(0.0,
                                                                         self.data.shape[1]/self.info["rhf_sps"],
                                                                         self.data.shape[1])
-                
+
             self.twtt = np.linspace(0,self.info["rhf_range"],self.info["rh_nsamp"])
 
             self.antsep = 0
@@ -117,12 +117,12 @@ class gprpyProfile:
             self.twtt_pretopo = None
             # Initialize previous
             self.initPrevious()
-            
+
             # Put what you did in history
             histstr = "mygpr.importdata('%s')" %(filename)
             self.history.append(histstr)
-    
-        
+
+
 
         elif file_ext==".GPRhdr" or file_ext==".dat":
             # ENVI standard BSQ file
@@ -141,10 +141,10 @@ class gprpyProfile:
             self.twtt_pretopo = None
             # Initialize previous
             self.initPrevious()
-            
+
             # Put what you did in history
             histstr = "mygpr.importdata('%s')" %(filename)
-            self.history.append(histstr)       
+            self.history.append(histstr)
 
 
         elif file_ext==".rad" or file_ext==".rd3" or file_ext==".rd7":
@@ -163,12 +163,12 @@ class gprpyProfile:
             self.twtt_pretopo = None
             # Initialize previous
             self.initPrevious()
-            
+
             # Put what you did in history
             histstr = "mygpr.importdata('%s')" %(filename)
             self.history.append(histstr)
-            
-            
+
+
 
         elif file_ext==".gpr":
             ## Getting back the objects:
@@ -187,7 +187,7 @@ class gprpyProfile:
             self.threeD = threeD
             self.data_pretopo = data_pretopo
             self.twtt_pretopo = twtt_pretopo
-            
+
             # Initialize previous
             self.initPrevious()
 
@@ -351,7 +351,7 @@ class gprpyProfile:
 
     def showHistory(self):
         '''
-        Prints out processing and visualization history of a data set. 
+        Prints out processing and visualization history of a data set.
         '''
         for i in range(0,len(self.history)):
             print(self.history[i])
@@ -369,7 +369,7 @@ class gprpyProfile:
             outfile.write("# Automatically generated by GPRPy\nimport gprpy.gprpy as gp\n")
             for i in range(0,len(self.history)):
                 outfile.write(self.history[i] + "\n")
-                
+
     def undo(self):
         '''
         Undoes the last processing step and removes that step fromt he history.
@@ -386,20 +386,20 @@ class gprpyProfile:
         self.data_pretopo = self.previous["data_pretopo"]
         self.twtt_pretopo = self.previous["twtt_pretopo"]
         # Make sure to not keep deleting history
-        # when applying undo several times. 
+        # when applying undo several times.
         histsav = copy.copy(self.previous["history"])
         del histsav[-1]
         self.history = histsav
         print("undo")
 
-        
+
     def initPrevious(self):
         '''
-        Initialization of data strucure that contains the step 
+        Initialization of data strucure that contains the step
         before the most recent action.
         '''
         self.previous["data"] = self.data
-        self.previous["twtt"] = self.twtt 
+        self.previous["twtt"] = self.twtt
         self.previous["info"] = self.info
         self.previous["profilePos"] = self.profilePos
         self.previous["velocity"] = self.velocity
@@ -412,12 +412,12 @@ class gprpyProfile:
         histsav = copy.copy(self.history)
         self.previous["history"] = histsav
 
-        
+
 
     def save(self,filename):
         '''
         Saves the processed data together with the processing and visualization
-        history. Warning: The history stored in this file will contain the full 
+        history. Warning: The history stored in this file will contain the full
         path to the file.
 
         INPUT:
@@ -428,23 +428,23 @@ class gprpyProfile:
         file_name, file_ext = os.path.splitext(filename)
         if not(file_ext=='.gpr'):
             filename = filename + '.gpr'
-        with open(filename, 'wb') as f:  
+        with open(filename, 'wb') as f:
             pickle.dump([self.data, self.info, self.profilePos, self.twtt,
                          self.history, self.antsep, self.velocity, self.depth,
                          self.maxTopo, self.minTopo, self.threeD, self.data_pretopo,
-                         self.twtt_pretopo], f)            
+                         self.twtt_pretopo], f)
         print("Saved " + filename)
         # Add to history string
         histstr = "mygpr.save('%s')" %(filename)
         self.history.append(histstr)
 
-    
+
     # This is a helper function
     def prepProfileFig(self, color="gray", contrast=1.0, yrng=None, xrng=None, asp=None):
         '''
         This is a helper function.
         It prepares the plot showing the processed profile data.
-        
+
         INPUT:
         color        "gray", or "bwr" for blue-white-red,
                      or any other Matplotlib color map [default: "gray"]
@@ -465,8 +465,8 @@ class gprpyProfile:
         '''
         dx=self.profilePos[3]-self.profilePos[2]
         dt=self.twtt[3]-self.twtt[2]
-        stdcont = np.nanmax(np.abs(self.data)[:])       
-        
+        stdcont = np.nanmax(np.abs(self.data)[:])
+
         if self.velocity is None:
             plt.imshow(self.data,cmap=color,extent=[min(self.profilePos)-dx/2.0,
                                                     max(self.profilePos)+dx/2.0,
@@ -479,7 +479,7 @@ class gprpyProfile:
                 yrng=[np.max(yrng),np.min(yrng)]
             else:
                 yrng=[np.max(self.twtt),np.min(self.twtt)]
-            
+
         elif self.maxTopo is None:
             dy=dt*self.velocity
             plt.imshow(self.data,cmap=color,extent=[min(self.profilePos)-dx/2.0,
@@ -493,25 +493,25 @@ class gprpyProfile:
                 yrng=[np.max(yrng),np.min(yrng)]
             else:
                 yrng=[np.max(self.depth),np.min(self.depth)]
-                
+
         else:
             dy=dt*self.velocity
             plt.imshow(self.data,cmap=color,extent=[min(self.profilePos)-dx/2.0,
                                                     max(self.profilePos)+dx/2.0,
                                                     self.minTopo-max(self.depth)-dy/2.0,
                                                     self.maxTopo-min(self.depth)+dy/2.0],
-                    aspect="auto",vmin=-stdcont/contrast, vmax=stdcont/contrast)            
+                    aspect="auto",vmin=-stdcont/contrast, vmax=stdcont/contrast)
             plt.gca().set_ylabel("elevation [m]")
             if yrng is None:
                 yrng=[self.minTopo-np.max(self.depth),self.maxTopo-np.min(self.depth)]
-            
+
 
         if xrng is None:
-            xrng=[min(self.profilePos),max(self.profilePos)]       
-                
+            xrng=[min(self.profilePos),max(self.profilePos)]
+
         if yrng is not None:
             plt.ylim(yrng)
-            
+
         if xrng is not None:
             plt.xlim(xrng)
 
@@ -519,20 +519,20 @@ class gprpyProfile:
             plt.gca().set_aspect(asp)
 
         plt.gca().get_xaxis().set_visible(True)
-        plt.gca().get_yaxis().set_visible(True)                
+        plt.gca().get_yaxis().set_visible(True)
         plt.gca().set_xlabel("profile position [m]")
         plt.gca().xaxis.tick_top()
         plt.gca().xaxis.set_label_position('top')
         ax = plt.gca()
-        
+
         return contrast, color, yrng, xrng, asp, ax
-       
-    
+
+
     def showProfile(self, **kwargs):
         '''
-        Plots the profile using Matplotlib. 
-        You need to run .show() afterward to show it 
-        
+        Plots the profile using Matplotlib.
+        You need to run .show() afterward to show it
+
         INPUT:
         color        "gray", or "bwr" for blue-white-red,
                      or any other Matplotlib color map [default: "gray"]
@@ -550,8 +550,8 @@ class gprpyProfile:
 
     def printProfile(self, figname, dpi=600, **kwargs):
         '''
-        Creates a pdf of the profile. 
-        
+        Creates a pdf of the profile.
+
         INPUT:
         figname      file name for the pdf
         dpi          dots per inch resolution [default: 600 dpi]
@@ -573,10 +573,10 @@ class gprpyProfile:
         else:
             histstr = "mygpr.printProfile('%s', color='%s', contrast=%g, yrng=[%g,%g], xrng=[%g,%g], asp=%g, dpi=%d)" %(figname,color,contrast,yrng[0],yrng[1],xrng[0],xrng[1],asp,dpi)
         self.history.append(histstr)
-        
+
 
     ####### Processing #######
-    
+
     def adjProfile(self,minPos,maxPos):
         '''
         Adjusts the length of the profile.
@@ -588,12 +588,12 @@ class gprpyProfile:
         # Store previous state for undo
         self.storePrevious()
         # set new profile positions
-        self.profilePos = np.linspace(minPos,maxPos,len(self.profilePos))       
+        self.profilePos = np.linspace(minPos,maxPos,len(self.profilePos))
         # Put what you did in history
         histstr = "mygpr.adjProfile(%g,%g)" %(minPos,maxPos)
         self.history.append(histstr)
 
-    
+
     def flipProfile(self):
         '''
         Flips the profile left-to-right (start to end)
@@ -605,17 +605,17 @@ class gprpyProfile:
             self.data_pretopo = np.flip(self.data_pretopo,1)
         histstr = "mygpr.flipProfile()"
         self.history.append(histstr)
-        
+
 
     def alignTraces(self):
         '''
-        Aligns the traces in the profile such that their maximum 
-        amplitudes align at the average travel time of the 
+        Aligns the traces in the profile such that their maximum
+        amplitudes align at the average travel time of the
         maximum amplitudes.
         '''
         # Store previous state for undo
-        self.storePrevious()        
-        self.data = tools.alignTraces(self.data)      
+        self.storePrevious()
+        self.data = tools.alignTraces(self.data)
         # Put what you did in history
         histstr = "mygpr.alignTraces()"
         self.history.append(histstr)
@@ -642,11 +642,11 @@ class gprpyProfile:
         # Put into history string
         histstr = "mygpr.cut(%g,%g)" %(minPos,maxPos)
         self.history.append(histstr)
-        
-        
+
+
     def setZeroTime(self,newZeroTime):
         '''
-        Deletes all data recorded before newZeroTime and 
+        Deletes all data recorded before newZeroTime and
         sets newZeroTime to zero.
 
         INPUT:
@@ -655,7 +655,7 @@ class gprpyProfile:
         # Store previous state for undo
         self.storePrevious()
         # Find index of value that is nearest to newZeroTime
-        zeroind = np.abs(self.twtt - newZeroTime).argmin() 
+        zeroind = np.abs(self.twtt - newZeroTime).argmin()
         # Cut out everything before
         self.twtt = self.twtt[zeroind:] - newZeroTime
         # Set first value to 0
@@ -663,18 +663,18 @@ class gprpyProfile:
         self.data = self.data[zeroind:,:]
         # Put what you did in history
         histstr = "mygpr.setZeroTime(%g)" %(newZeroTime)
-        self.history.append(histstr)  
+        self.history.append(histstr)
 
-        
+
     def dewow(self,window):
         '''
-        Subtracts from each sample along each trace an 
+        Subtracts from each sample along each trace an
         along-time moving average.
 
         Can be used as a low-cut filter.
 
         INPUT:
-        window     length of moving average window 
+        window     length of moving average window
                    [in "number of samples"]
         '''
         # Store previous state for undo
@@ -687,12 +687,12 @@ class gprpyProfile:
 
     def smooth(self,window):
         '''
-        Replaces each sample along each trace with an 
+        Replaces each sample along each trace with an
         along-time moving average.
 
         Can be used as high-cut filter.
 
-        INPUT: 
+        INPUT:
         window     length of moving average window
                    [in "number of samples"]
         '''
@@ -703,23 +703,23 @@ class gprpyProfile:
         histstr = "mygpr.smooth(%d)" %(window)
         self.history.append(histstr)
 
-        
+
     def remMeanTrace(self,ntraces):
         '''
         Subtracts from each trace the average trace over
         a moving average window.
 
-        Can be used to remove horizontal arrivals, 
+        Can be used to remove horizontal arrivals,
         such as the airwave.
 
         INPUT:
-        ntraces     window width; over how many traces 
-                    to take the moving average. 
+        ntraces     window width; over how many traces
+                    to take the moving average.
         '''
         # Store previous state for undo
         self.storePrevious()
         # apply
-        self.data = tools.remMeanTrace(self.data,ntraces)        
+        self.data = tools.remMeanTrace(self.data,ntraces)
         # Put in history
         histstr = "mygpr.remMeanTrace(%d)" %(ntraces)
         self.history.append(histstr)
@@ -727,22 +727,22 @@ class gprpyProfile:
 
     def profileSmooth(self,ntraces,noversample):
         '''
-        First creates copies of each trace and appends the copies 
-        next to each trace, then replaces each trace with the 
+        First creates copies of each trace and appends the copies
+        next to each trace, then replaces each trace with the
         average trace over a moving average window.
 
-        Can be used to smooth-out noisy reflectors appearing 
-        in neighboring traces, or simply to increase the along-profile 
+        Can be used to smooth-out noisy reflectors appearing
+        in neighboring traces, or simply to increase the along-profile
         resolution by interpolating between the traces.
 
-        For example: To increase the along-profile resolution smoothly 
+        For example: To increase the along-profile resolution smoothly
         by a factor of 4: use
 
         mygpr.profileSmooth(4,4)
 
         INPUT:
-        ntraces         window width [in "number of samples"]; 
-                        over how many traces to take the moving average. 
+        ntraces         window width [in "number of samples"];
+                        over how many traces to take the moving average.
         noversample     how many copies of each trace
         '''
         # Store previous state for undo
@@ -753,7 +753,7 @@ class gprpyProfile:
         histstr = "mygpr.profileSmooth(%d,%d)" %(ntraces,noversample)
         self.history.append(histstr)
 
-        
+
     def tpowGain(self,power=0.0):
         '''
         Apply a t-power gain to each trace with the given exponent.
@@ -784,7 +784,7 @@ class gprpyProfile:
         # Put in history
         histstr = "mygpr.agcGain(%d)" %(float(window))
         self.history.append(histstr)
-        
+
 
     def setVelocity(self,velocity):
         '''
@@ -798,19 +798,19 @@ class gprpyProfile:
 
         self.velocity = velocity
         self.depth = self.twtt * velocity/2.0
-        
+
         # Put in history
         histstr = "mygpr.setVelocity(%g)" %(velocity)
         self.history.append(histstr)
 
 
     def antennaSep(self):
-        ''' 
+        '''
         Corrects for distortions of arrival times caused by the
         separation of the antennae.
 
         For this to work properly, you must have set the velocity
-        and you must have set the zero time to the beginning of the 
+        and you must have set the zero time to the beginning of the
         arrival of the airwave.
 
         '''
@@ -851,15 +851,15 @@ class gprpyProfile:
 
         # And update the two-way travel time
         self.twtt = td
-        
+
         # Put in history
         histstr = "mygpr.antennaSep()"
         self.history.append(histstr)
 
-        
+
     def fkMigration(self):
         '''
-        Apply Stolt's f-k migration to the profile. Requires the 
+        Apply Stolt's f-k migration to the profile. Requires the
         velocity to be set.
 
         This is a wrapper function for the migration code
@@ -874,12 +874,12 @@ class gprpyProfile:
         # fkmig sets x profile to start at zero but resamples
         self.data,self.twtt,migProfilePos=mig_fk.fkmig(self.data,dt,dx,self.velocity)
         self.profilePos = migProfilePos + self.profilePos[0]
-        
+
         # Put in history
         histstr = "mygpr.fkMigration()"
         self.history.append(histstr)
-        
-        
+
+
     def truncateY(self,maxY):
         '''
         Delete all data after y-axis position maxY.
@@ -910,17 +910,17 @@ class gprpyProfile:
         self.history.append(histstr)
 
 
-        
+
     def topoCorrect(self,topofile,delimiter=','):
         '''
-        Correct for topography along the profile by shifting each 
+        Correct for topography along the profile by shifting each
         Trace up or down depending on a provided ASCII text file
         containing topography information.
 
-        The topography data file can either have 
+        The topography data file can either have
         two columns: profile position and topography,
         or three columns: X, Y, and topography, or Easting, Northing, topography
-        
+
         In the topo text file, units of profile position (or northing and easting)
         and of the topography (or elevation) need to be in meters!
 
@@ -951,36 +951,36 @@ class gprpyProfile:
         else:
             histstr = "mygpr.topoCorrect('%s',delimiter='\\t')" %(topofile)
         self.history.append(histstr)
-        
+
 
 
     def exportVTK(self,outfile,gpsinfo,delimiter=',',thickness=0,aspect=1.0,smooth=True, win_length=51, porder=3):
         '''
-        Turn processed profile into a VTK file that can be imported in 
+        Turn processed profile into a VTK file that can be imported in
         Paraview or MayaVi or other VTK processing and visualization tools.
 
-        If three-dimensional topo information is provided (X,Y,Z or 
-        Easting, Northing, Elevation), then the profile will be exported 
+        If three-dimensional topo information is provided (X,Y,Z or
+        Easting, Northing, Elevation), then the profile will be exported
         in its three-dimensional shape.
 
         INPUT:
         outfile       file name for the VTK file
-        gpsinfo       EITHER: n x 3 matrix containing x, y, and z or 
+        gpsinfo       EITHER: n x 3 matrix containing x, y, and z or
                               Easting, Northing, Elevation information
                       OR: file name for ASCII text file containing this
                           information
         delimiter     if topo file is provided: delimiter (by comma, or by tab)
-                      [default: ',']. To set tab: delimiter='\t' 
-        thickness     If you want your profile to be exported as a 
+                      [default: ',']. To set tab: delimiter='\t'
+        thickness     If you want your profile to be exported as a
                       three-dimensional band with thickness, enter thickness
                       in meters [default: 0]
         aspect        aspect ratio in case you want to exaggerate z-axis.
-                      default = 1. I recommend leaving this at 1 and using 
+                      default = 1. I recommend leaving this at 1 and using
                       your VTK visualization software to set the aspect for
                       the representation.
         smooth        Want to smooth the profile's three-dimensional alignment
                       instead of piecewise linear? [Default: True]
-        win_length    If smoothing, the window length for 
+        win_length    If smoothing, the window length for
                       scipy.signal.savgol_filter [default: 51]
         porder        If smoothing, the polynomial order for
                       scipy.signal.savgol_filter [default: 3]
@@ -990,22 +990,22 @@ class gprpyProfile:
             gpsmat = np.loadtxt(gpsinfo,delimiter=delimiter)
         else:
             gpsmat = gpsinfo
-            
+
         # First get the x,y,z positions of our data points
-        x,y,z = tools.prepVTK(self.profilePos,gpsmat,smooth,win_length,porder)        
-        z = z*aspect     
+        x,y,z = tools.prepVTK(self.profilePos,gpsmat,smooth,win_length,porder)
+        z = z*aspect
         if self.velocity is None:
             downward = self.twtt*aspect
         else:
-            downward = self.depth*aspect                        
+            downward = self.depth*aspect
         Z = np.reshape(z,(len(z),1)) - np.reshape(downward,(1,len(downward)))
 
-        
+
         if thickness:
             ZZ = np.tile(np.reshape(Z, (1,Z.shape[0],Z.shape[1])), (2,1,1))
         else:
             ZZ = np.tile(np.reshape(Z, (1,Z.shape[0],Z.shape[1])), (1,1,1))
-        
+
         # This is if we want everything on the x axis.
         #X = np.tile(np.reshape(self.profilePos,(len(self.profilePos),1)),(1,len(downward)))
         #XX = np.tile(np.reshape(X, (X.shape[0],1,X.shape[1])), (1,2,1))
@@ -1017,10 +1017,10 @@ class gprpyProfile:
         # draw the perpendicular to the segment and place a grid point in each perpendicular
         # direction
         #
-        #          x[0]-px[0], x[1]-px[1], x[2]-px[2], ..... 
-        # xvals =     x[0]   ,    x[1]   ,     x[2]  , .....   
+        #          x[0]-px[0], x[1]-px[1], x[2]-px[2], .....
+        # xvals =     x[0]   ,    x[1]   ,     x[2]  , .....
         #          x[0]+px[0], x[1]+px[1], x[2]+px[2], .....
-        #  
+        #
         #          y[0]+py[0], y[1]+py[1], y[2]+py[2], .....
         # yvals =     y[0]   ,    y[1]   ,    y[2]   , .....
         #          y[0]-py[0], y[1]-py[1], y[2]-py[2], .....
@@ -1037,22 +1037,22 @@ class gprpyProfile:
         else:
             X = np.asarray([x.squeeze()])
             Y = np.asarray([y.squeeze()])
-        
+
         # Copy-paste the same X and Y positions for each depth
         XX = np.tile(np.reshape(X, (X.shape[0],X.shape[1],1)), (1,1,ZZ.shape[2]))
         YY = np.tile(np.reshape(Y, (Y.shape[0],Y.shape[1],1)), (1,1,ZZ.shape[2]))
-        
+
         if self.maxTopo is None:
             data=self.data.transpose()
         else:
-            data=self.data_pretopo.transpose()       
+            data=self.data_pretopo.transpose()
 
         data = np.asarray(data)
-        data = np.reshape(data,(1,data.shape[0],data.shape[1]))                 
+        data = np.reshape(data,(1,data.shape[0],data.shape[1]))
         data = np.tile(data, (2,1,1))
-        
+
         # Remove the last row and column to turn it into a cell
-        # instead of point values 
+        # instead of point values
         data = data[0:-1,0:-1,0:-1]
 
         nx=2-1
@@ -1060,14 +1060,14 @@ class gprpyProfile:
         nz=len(downward)-1
         datarray = np.zeros(nx*ny*nz).reshape(nx,ny,nz)
         datarray[:,:,:] = data
-        
+
         gridToVTK(outfile,XX,YY,ZZ, cellData ={'gpr': datarray})
- 
+
         # Put in history
         if gpsinfo is None:
             histstr = "mygpr.exportVTK('%s',aspect=%g)" %(outfile,aspect)
         else:
-            if type(gpsinfo) is str:            
+            if type(gpsinfo) is str:
                 if delimiter is ',':
                     histstr = "mygpr.exportVTK('%s',gpsinfo='%s',thickness=%g,delimiter=',',aspect=%g,smooth=%r, win_length=%d, porder=%d)" %(outfile,gpsinfo,thickness,aspect,smooth,win_length,porder)
                 else:
@@ -1077,12 +1077,12 @@ class gprpyProfile:
                     histstr = "mygpr.exportVTK('%s',gpsinfo=mygpr.threeD,thickness=%g,delimiter=',',aspect=%g,smooth=%r, win_length=%d, porder=%d)" %(outfile,thickness,aspect,smooth,win_length,porder)
                 else:
                     histstr = "mygpr.exportVTK('%s',gpsinfo=mygpr.threeD,thickness=%g,delimiter='\\t',aspect=%g,smooth=%r, win_length=%d, porder=%d)" %(outfile,thickness,aspect,smooth,win_length,porder)
-                    
-        self.history.append(histstr)       
-        
+
+        self.history.append(histstr)
+
     def storePrevious(self):
         '''
-        Stores the current state of the profile and history in the 
+        Stores the current state of the profile and history in the
         "previous" variable to be able to apply undo.
         '''
         self.previous["data"] = self.data
@@ -1096,23 +1096,23 @@ class gprpyProfile:
         self.previous["threeD"] = self.threeD
         self.previous["data_pretopo"] = self.data_pretopo
         self.previous["twtt_pretopo"] = self.twtt_pretopo
-        
 
 
 
-        
+
+
 class gprpyCW(gprpyProfile):
     '''
     Ground penetrating radar data processing and visualization class
     for common midpoint or wide angle reflection and refraction data
- 
+
     Inherits all of the gprpyProfile class functions but not all
-    of these functions may be useful here. 
+    of these functions may be useful here.
     '''
     def __init__(self,filename=None,dtype=None):
         '''
-        Initialization for a gprpyCW object. Initialization can be 
-        empty or with a provided filename for the GPR data and 
+        Initialization for a gprpyCW object. Initialization can be
+        empty or with a provided filename for the GPR data and
         a data type.
 
         INPUT:
@@ -1133,14 +1133,14 @@ class gprpyCW(gprpyProfile):
         # Picked lines and hyperbolae
         self.lins = list()
         self.hyps = list()
-        
+
         if (filename is not None) and (dtype is not None):
             self.importdata(filename,dtype)
 
 
     def storePrevious(self):
         '''
-        Stores the current state of the profile and history in the 
+        Stores the current state of the profile and history in the
         "previous" variable to be able to apply undo.
         '''
         self.previous["data"] = self.data
@@ -1156,20 +1156,20 @@ class gprpyCW(gprpyProfile):
 
 
 
-            
+
     def importdata(self,filename,dtype):
         '''
         Loads .gpr (native GPRPy), .DT1 (Sensors and Software),
         .DZT (GSSI), .GPRhdr (ENVI standard BSQ), .rad (MALA)
         data files and populates all the gprpyProfile fields.
 
-        INPUT: 
-        filename  name of the .gpr, .DT1, .DZT, .GPRhdr, dat, rd3, 
+        INPUT:
+        filename  name of the .gpr, .DT1, .DZT, .GPRhdr, dat, rd3,
                   or .rad file you want to import.
-                  The header file name and the data file name 
+                  The header file name and the data file name
                   have to be the same!
         dtype     data type. Either "CMP" or "WARR
-        
+
         '''
         print(filename)
         super().importdata(filename)
@@ -1179,12 +1179,12 @@ class gprpyCW(gprpyProfile):
         del self.history[-1]
         # Put what you did in history
         histstr = "mygpr.importdata('%s',dtype='%s')" %(filename,dtype)
-        self.history.append(histstr)  
+        self.history.append(histstr)
 
 
     # def setZeroTimeCW(self,newZeroTime):
     #     '''
-    #     Deletes all data recorded before newZeroTime and 
+    #     Deletes all data recorded before newZeroTime and
     #     sets newZeroTime to zero.
 
     #     INPUT:
@@ -1199,12 +1199,12 @@ class gprpyCW(gprpyProfile):
     #     #self.data = self.data[zeroind:,:]
     #     # Put what you did in history
     #     histstr = "mygpr.setZeroTime(%g)" %(newZeroTime)
-    #     self.history.append(histstr)  
-        
-    
+    #     self.history.append(histstr)
+
+
     def normalize(self):
         '''
-        Divides each trace by its total energy to counteract the 
+        Divides each trace by its total energy to counteract the
         loss of energy for wider antennae separations.
         '''
         # Store previous state for undo
@@ -1214,20 +1214,20 @@ class gprpyCW(gprpyProfile):
         print("normalized data set")
         # Put what you did in history
         histstr = "mygpr.normalize()"
-        self.history.append(histstr) 
+        self.history.append(histstr)
 
 
     def linStackedAmplitude(self,vmin=0.01,vmax=0.35,vint=0.01):
         '''
-        Calculates the linear stacked amplitudes for each 
-        travel time sample and the provided velocity range 
-        by summing the pixels of the data that follow a line given 
+        Calculates the linear stacked amplitudes for each
+        travel time sample and the provided velocity range
+        by summing the pixels of the data that follow a line given
         by the travel time zero offset and the velocity.
 
         INPUT:
-        vmin       minimal velocity for which to calculate the 
+        vmin       minimal velocity for which to calculate the
                    stacked amplitude, in m/ns [default = 0.01 m/ns]
-        vmax       maximum velocity for which to calculate the 
+        vmax       maximum velocity for which to calculate the
                    stacked amplitude, in m/ns [default = 0.35 m/ns]
         vint       velocity intervall, in m/ns [default = 0.01 m/ns]
         '''
@@ -1243,19 +1243,19 @@ class gprpyCW(gprpyProfile):
         # Put what you did in history
         histstr = "mygpr.linStackedAmplitude(vmin=%g,vmax=%g,vint=%g)" %(vmin,vmax,vint)
         self.history.append(histstr)
-        
+
 
     def hypStackedAmplitude(self,vmin=0.01,vmax=0.35,vint=0.01):
         '''
-        Calculates the hyperbolic stacked amplitudes for each 
-        travel time sample and the provided velocity range 
-        by summing the pixels of the data that follow a hyperbola given 
+        Calculates the hyperbolic stacked amplitudes for each
+        travel time sample and the provided velocity range
+        by summing the pixels of the data that follow a hyperbola given
         by the travel time apex and the velocity.
 
         INPUT:
-        vmin       minimal velocity for which to calculate the 
+        vmin       minimal velocity for which to calculate the
                    stacked amplitude, in m/ns [default = 0.01 m/ns]
-        vmax       maximum velocity for which to calculate the 
+        vmax       maximum velocity for which to calculate the
                    stacked amplitude, in m/ns [default = 0.35 m/ns]
         vint       velocity intervall, in m/ns [default = 0.01 m/ns]
         '''
@@ -1270,7 +1270,7 @@ class gprpyCW(gprpyProfile):
         print("calculated hyperbola stacked amplitude")
         # Put what you did in history
         histstr = "mygpr.hypStackedAmplitude(vmin=%g,vmax=%g,vint=%g)" %(vmin,vmax,vint)
-        self.history.append(histstr)                  
+        self.history.append(histstr)
 
 
     def addLin(self,zerotwtt,vel):
@@ -1288,12 +1288,12 @@ class gprpyCW(gprpyProfile):
         self.lins.append([zerotwtt,vel])
         # Put what you did in history
         histstr = "mygpr.addLin(zerotwtt=%g,vel=%g)" %(zerotwtt,vel)
-        self.history.append(histstr)  
-            
+        self.history.append(histstr)
+
 
     def addHyp(self,zerotwtt,vel):
         '''
-        Adds an observed hyperbola given by its apex 
+        Adds an observed hyperbola given by its apex
         travel time and velocity to the list of lines.
 
         INPUT:
@@ -1305,7 +1305,7 @@ class gprpyCW(gprpyProfile):
         self.hyps.append([zerotwtt,vel])
         # Put what you did in history
         histstr = "mygpr.addHyp(zerotwtt=%g,vel=%g)" %(zerotwtt,vel)
-        self.history.append(histstr)  
+        self.history.append(histstr)
 
     def remLin(self):
         '''
@@ -1316,8 +1316,8 @@ class gprpyCW(gprpyProfile):
         self.storePrevious()
         del self.lins[-1]
         # Put what you did in history
-        histstr = "mygpr.remLin()" 
-        self.history.append(histstr) 
+        histstr = "mygpr.remLin()"
+        self.history.append(histstr)
 
     def remHyp(self):
         '''
@@ -1328,8 +1328,8 @@ class gprpyCW(gprpyProfile):
         self.storePrevious()
         del self.hyps[-1]
         # Put what you did in history
-        histstr = "mygpr.remHyp()" 
-        self.history.append(histstr) 
+        histstr = "mygpr.remHyp()"
+        self.history.append(histstr)
 
 
 
@@ -1339,7 +1339,7 @@ class gprpyCW(gprpyProfile):
         '''
         This is a helper function.
         It prepares the plot showing the processed CMP or WARR data.
-        
+
         INPUT:
         color        "gray", or "bwr" for blue-white-red,
                      or any other Matplotlib color map [default: "gray"]
@@ -1351,16 +1351,16 @@ class gprpyCW(gprpyProfile):
                      [default: False]
 
         OUTPUT:
-        contrast     contrast value used to prepare the figure 
+        contrast     contrast value used to prepare the figure
         color        color value used to prepare the figure
         yrng         yrng value used to prepare the figure
-        xrng         xrng value used to prepare the figure 
+        xrng         xrng value used to prepare the figure
         showlnhp     showlnhp value used to prepare the figure
         '''
         dx=self.profilePos[3]-self.profilePos[2]
         dt=self.twtt[3]-self.twtt[2]
-        stdcont = np.nanmax(np.abs(self.data)[:])       
-        
+        stdcont = np.nanmax(np.abs(self.data)[:])
+
         plt.imshow(self.data,cmap=color,extent=[min(self.profilePos)-dx/2.0,
                                                 max(self.profilePos)+dx/2.0,
                                                 max(self.twtt)+dt/2.0,
@@ -1373,9 +1373,9 @@ class gprpyCW(gprpyProfile):
         else:
             yrng=[np.max(self.twtt),np.min(self.twtt)]
         plt.ylim(yrng)
-            
+
         if xrng is None:
-            xrng=[min(self.profilePos),max(self.profilePos)]                           
+            xrng=[min(self.profilePos),max(self.profilePos)]
         plt.xlim(xrng)
 
         plt.gca().get_xaxis().set_visible(True)
@@ -1402,7 +1402,7 @@ class gprpyCW(gprpyProfile):
                     time = np.sqrt(x2 + 4*np.power(hyp[0]/2.0 * hyp[1],2.0))/hyp[1]
                     plt.plot(self.profilePos,time,linewidth=2,color='yellow')
                     plt.plot(self.profilePos,time,linewidth=1,color='black')
-                                    
+
         return contrast, color, yrng, xrng, showlnhp
 
 
@@ -1411,20 +1411,20 @@ class gprpyCW(gprpyProfile):
         '''
         This is a helper function.
         It prepares the plot showing the stacked amplitudes results.
-        
+
         INPUT:
-        whichstamp   is this for the linear ("lin") or hyperbolic ("hyp") 
+        whichstamp   is this for the linear ("lin") or hyperbolic ("hyp")
                      stacked amplitudes
         saturation   Factor to increase contrast by reducing color range.
                      [default = 1.0]
         yrng         y-axis range to show [default: None, meaning "everything"]
-        vrng         velocities (x-axis) range to show 
+        vrng         velocities (x-axis) range to show
                      [default: None, meaning "everything"]
 
         OUTPUT:
         whichstamp   whichstamp value used to prepare the figure
-        saturation   saturation value used to prepare the figure 
-        yrng         yrng value used to prepare the figure 
+        saturation   saturation value used to prepare the figure
+        yrng         yrng value used to prepare the figure
         vrng         vrng value used to prepare the figure
         '''
         dt=self.twtt[3]-self.twtt[2]
@@ -1437,7 +1437,7 @@ class gprpyCW(gprpyProfile):
             title = "hyperbolic stacked amplitude"
         else:
             stamp = None
-            
+
         if stamp is not None:
             stdcont = np.nanmax(np.abs(stamp)[:])
             plt.imshow(np.flipud(np.abs(stamp)), cmap='inferno',
@@ -1453,11 +1453,11 @@ class gprpyCW(gprpyProfile):
             else:
                 yrng=[np.max(self.twtt),np.min(self.twtt)]
             plt.ylim(yrng)
-            
+
             if vrng is None:
-                vrng=[np.min(self.vVals),np.max(self.vVals)]                           
+                vrng=[np.min(self.vVals),np.max(self.vVals)]
             plt.xlim(vrng)
-                
+
 
             plt.gca().set_xlabel("velocity [m/ns]")
             plt.gca().set_ylabel("time [ns]")
@@ -1467,15 +1467,15 @@ class gprpyCW(gprpyProfile):
             plt.gca().get_yaxis().set_visible(True)
             plt.gca().get_xaxis().set_ticks_position('both')
             plt.gca().get_yaxis().set_ticks_position('both')
-                                
+
         return whichstamp, saturation, yrng, vrng
 
-    
-    
+
+
     def showCWFig(self, **kwargs):
         '''
-        Plots the CMP or WARR data using Matplotlib. 
-        You need to run .show() afterward to show it 
+        Plots the CMP or WARR data using Matplotlib.
+        You need to run .show() afterward to show it
 
         INPUT:
         color        "gray", or "bwr" for blue-white-red,
@@ -1493,22 +1493,22 @@ class gprpyCW(gprpyProfile):
 
     def showStAmpFig(self, **kwargs):
         '''
-        Plots the stacked amplitude results using Matplotlib. 
-        You need to run .show() afterward to show it 
+        Plots the stacked amplitude results using Matplotlib.
+        You need to run .show() afterward to show it
 
         INPUT:
-        whichstamp   is this for the linear ("lin") or hyperbolic ("hyp") 
+        whichstamp   is this for the linear ("lin") or hyperbolic ("hyp")
                      stacked amplitudes
         saturation   Factor to increase contrast by reducing color range.
                      [default = 1.0]
         yrng         y-axis range to show [default: None, meaning "everything"]
-        vrng         velocities (x-axis) range to show 
+        vrng         velocities (x-axis) range to show
                      [default: None, meaning "everything"]
         '''
         self.prepStAmpFig(**kwargs)
         plt.show(block=False)
-        
-       
+
+
 
     def printCWFigure(self, figname, dpi=600, **kwargs):
         '''
@@ -1528,7 +1528,7 @@ class gprpyCW(gprpyProfile):
                      [default: False]
         '''
 
-        
+
         contrast, color, yrng, xrng, showlnhp = self.prepCWFig(**kwargs)
         plt.savefig(figname, format='pdf', dpi=dpi)
         plt.close('all')
@@ -1544,15 +1544,15 @@ class gprpyCW(gprpyProfile):
         INPUT:
         figname      file name for the pdf
         dpi          dots per inch resolution [default: 600 dpi]
-        whichstamp   is this for the linear ("lin") or hyperbolic ("hyp") 
+        whichstamp   is this for the linear ("lin") or hyperbolic ("hyp")
                      stacked amplitudes
         saturation   Factor to increase contrast by reducing color range.
                      [default = 1.0]
         yrng         y-axis range to show [default: None, meaning "everything"]
-        vrng         velocities (x-axis) range to show 
+        vrng         velocities (x-axis) range to show
                      [default: None, meaning "everything"]
         '''
-        
+
         whichstamp, saturation, yrng, vrng = self.prepStAmpFig(**kwargs)
         plt.savefig(figname, format='pdf', dpi=dpi)
         plt.close('all')
