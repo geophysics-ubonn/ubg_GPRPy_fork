@@ -991,7 +991,7 @@ class GPRPyApp:
             # Just in case someone presses undo before changing yrange
             self.prevyrng=self.yrng
             print("Loaded " + filename)
-
+            self.window.title("GPRPy (Filename: {})".format(filename))
 
     def saveData(self,proj):
         filename = fd.asksaveasfilename(defaultextension=".gpr")
