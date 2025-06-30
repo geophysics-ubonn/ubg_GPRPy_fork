@@ -43,8 +43,7 @@ def alignTraces(data):
     return newdata
 
 
-
-def dewow(data,window):
+def dewow(data, window):
     '''
     Subtracts from each sample along each trace an
     along-time moving average.
@@ -85,7 +84,6 @@ def dewow(data,window):
 
     print('done with dewow')
     return newdata
-
 
 
 def smooth(data,window):
@@ -402,9 +400,6 @@ def correctTopo(data, velocity, profilePos, topoPos, topoVal, twtt):
             #print(type(tshift[pos][0]))
             newdata[tshift[pos][0]:tshift[pos][0]+nsamples ,pos] = np.squeeze(data[:,pos])
         return newdata, newtwtt, np.max(elev), np.min(elev)
-
-
-
 
 
 def prepVTK(profilePos,gpsmat=None,smooth=True,win_length=51,porder=3):

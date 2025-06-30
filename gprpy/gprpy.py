@@ -150,8 +150,14 @@ class gprpyProfile:
         elif file_ext==".rad" or file_ext==".rd3" or file_ext==".rd7":
             self.data, self.info = gprIO_MALA.readMALA(file_name)
 
-            self.twtt = np.linspace(0,float(self.info["TIMEWINDOW"]),int(self.info["SAMPLES"]))
-            self.profilePos = float(self.info["DISTANCE INTERVAL"])*np.arange(0,self.data.shape[1])
+            self.twtt = np.linspace(
+                0,
+                float(self.info["TIMEWINDOW"]),
+                int(self.info["SAMPLES"])
+            )
+            self.profilePos = float(
+                self.info["DISTANCE INTERVAL"]
+            )  * np.arange(0,self.data.shape[1])
 
             self.antsep = self.info["ANTENNA SEPARATION"]
             self.velocity = None
@@ -167,9 +173,6 @@ class gprpyProfile:
             # Put what you did in history
             histstr = "mygpr.importdata('%s')" %(filename)
             self.history.append(histstr)
-
-
-
         elif file_ext==".gpr":
             ## Getting back the objects:
             with open(filename, 'rb') as f:
@@ -666,7 +669,7 @@ class gprpyProfile:
         self.history.append(histstr)
 
 
-    def dewow(self,window):
+    def dewow(self, window):
         '''
         Subtracts from each sample along each trace an
         along-time moving average.
@@ -679,7 +682,7 @@ class gprpyProfile:
         '''
         # Store previous state for undo
         self.storePrevious()
-        self.data = tools.dewow(self.data,window)
+        self.data = tools.dewow(self.data, window)
         # Put in history
         histstr = "mygpr.dewow(%d)" %(window)
         self.history.append(histstr)
