@@ -797,11 +797,12 @@ class GPRPyApp:
         setVelButton.config(height=1, width=2*halfwid)
         setVelButton.grid(
             row=13, column=rightcol, sticky='nsew', columnspan=colsp)
-        self.balloon.bind(setVelButton,
-                          "Set the known subsurface radar velocity. This\n"
-                          "turns the y-axis from travel time to depth.\n"
-                          "This step is necessary for topographic correction.")
-
+        self.balloon.bind(
+            setVelButton,
+            "Set the known subsurface radar velocity. This\n"
+            "turns the y-axis from travel time to depth.\n"
+            "This step is necessary for topographic correction."
+        )
 
         # Correct for antenna separation
         antennaSepButton = tk.Button(
@@ -860,52 +861,70 @@ class GPRPyApp:
 
         startPickButton = tk.Button(
             text="start pick", fg="black",
-            command=lambda : self.startPicking(proj, fig=fig, a=a, canvas=canvas))
-        startPickButton.config(height = 1, width = halfwid)
-        startPickButton.grid(row=17, column=rightcol, sticky='nsew', columnspan=1)
-        self.balloon.bind(startPickButton,
-                          "Start collecting location information\n"
-                          "by clicking on the profile.")
+            command=lambda: self.startPicking(
+                proj, fig=fig, a=a, canvas=canvas
+            )
+        )
+        startPickButton.config(height=1, width=halfwid)
+        startPickButton.grid(
+            row=17, column=rightcol, sticky='nsew', columnspan=1
+        )
+        self.balloon.bind(
+            startPickButton,
+            "Start collecting location information\n"
+            "by clicking on the profile."
+        )
 
         stopPickButton = tk.Button(
             text="stop pick", fg="black",
-            command=lambda : [self.stopPicking(proj, canvas),
-                              self.plotProfileData(proj, fig=fig, a=a, canvas=canvas)])
+            command=lambda: [
+                self.stopPicking(proj, canvas),
+                 self.plotProfileData(proj, fig=fig, a=a, canvas=canvas)
+            ]
+        )
 
-        stopPickButton.config(height = 1, width = halfwid)
-        stopPickButton.grid(row=17, column=rightcol+1, sticky='nsew', columnspan=1)
-        self.balloon.bind(stopPickButton,
-                          "Stop collecting location information\n"
-                          "and save the locations you collected\n"
-                          "in a text file.")
+        stopPickButton.config(height=1, width=halfwid)
+        stopPickButton.grid(
+            row=17, column=rightcol+1, sticky='nsew', columnspan=1
+        )
+        self.balloon.bind(
+            stopPickButton,
+            "Stop collecting location information\n"
+            "and save the locations you collected\n"
+            "in a text file."
+        )
 
         # Save data
         SaveButton = tk.Button(
             text="save data", fg="black",
-            command=lambda : self.saveData(proj))
-        SaveButton.config(height = 1, width = 2*halfwid)
-        SaveButton.grid(row=18, column=rightcol, sticky='nsew', columnspan=colsp)
-        self.balloon.bind(SaveButton,
-                          'saves the processed data including its history in a\n'
-                          '.gpr file. The resulting file will contain absolute\n'
-                          'path names of the used data and topography files.\n'
-                          'Visualization settings such as "set x-range" or\n'
-                          '"contrast" will not be saved.')
-
-
+            command=lambda: self.saveData(proj))
+        SaveButton.config(height=1, width=2*halfwid)
+        SaveButton.grid(
+            row=18, column=rightcol, sticky='nsew', columnspan=colsp)
+        self.balloon.bind(
+            SaveButton,
+            'saves the processed data including its history in a\n'
+            '.gpr file. The resulting file will contain absolute\n'
+            'path names of the used data and topography files.\n'
+            'Visualization settings such as "set x-range" or\n'
+            '"contrast" will not be saved.'
+        )
 
         # Print Figure
         PrintButton = tk.Button(
             text="print figure", fg="black",
-            command=lambda : self.printProfileFig(proj=proj, fig=fig))
-        PrintButton.config(height = 1, width = 2*halfwid)
-        PrintButton.grid(row=19, column=rightcol, sticky='nsew', columnspan=colsp)
-        self.balloon.bind(PrintButton,
-                          "Saves the current visible figure in a pdf with \n"
-                          "chosen resolution. If there is a hyperbola on\n"
-                          "the current figure, then the hyperbola will also\n"
-                          "appear on the printed figure.")
-
+            command=lambda: self.printProfileFig(proj=proj, fig=fig))
+        PrintButton.config(height=1, width=2*halfwid)
+        PrintButton.grid(
+            row=19, column=rightcol, sticky='nsew', columnspan=colsp
+        )
+        self.balloon.bind(
+            PrintButton,
+            "Saves the current visible figure in a pdf with \n"
+            "chosen resolution. If there is a hyperbola on\n"
+            "the current figure, then the hyperbola will also\n"
+            "appear on the printed figure."
+        )
 
         # Export to VTK
         VTKButton = tk.Button(
@@ -1190,26 +1209,27 @@ class GPRPyApp:
         else:
             proj.undo()
 
-
     def setYrng(self):
         ylow = sd.askfloat("Input", "Min Y value", initialvalue=self.yrng[0])
         if ylow is not None:
-            yhigh = sd.askfloat("Input", "Max Y value", initialvalue=self.yrng[1])
+            yhigh = sd.askfloat(
+                "Input", "Max Y value", initialvalue=self.yrng[1]
+            )
             if yhigh is not None:
                 self.prevyrng=self.yrng
                 self.yrng=[ylow, yhigh]
 
-
     def resetYrng(self, proj):
         # Only needed in undo, and only if what you want to
         # undo changed the y axis
-        if ("setVelocity" in proj.history[-1]) or ("topoCorrect" in proj.history[-1]) and not self.picking:
+        check1 = ("setVelocity" in proj.history[-1])
+        if check1 or ("topoCorrect" in proj.history[-1]) and not self.picking:
             self.yrng=self.prevyrng
 
-
     def setAspect(self):
-        self.asp = sd.askfloat("Input", "Plotting aspect ratio", initialvalue=self.asp)
-
+        self.asp = sd.askfloat(
+            "Input", "Plotting aspect ratio", initialvalue=self.asp
+        )
 
     def setFullView(self, proj):
         self.xrng=[np.min(proj.profilePos), np.max(proj.profilePos)]
@@ -1218,32 +1238,44 @@ class GPRPyApp:
         elif proj.maxTopo is None:
             self.yrng=[np.min(proj.depth), np.max(proj.depth)]
         else:
-            self.yrng=[proj.minTopo-np.max(proj.depth), proj.maxTopo-np.min(proj.depth)]
-
+            self.yrng=[
+                proj.minTopo - np.max(proj.depth),
+                proj.maxTopo - np.min(proj.depth)
+            ]
 
     def toggleGrid(self):
         self.grid = not self.grid
 
-
     def setXrng(self):
         xlow = sd.askfloat("Input", "Min X value", initialvalue=self.xrng[0])
         if xlow is not None:
-            xhigh = sd.askfloat("Input", "Max X value", initialvalue=self.xrng[1])
+            xhigh = sd.askfloat(
+                "Input", "Max X value", initialvalue=self.xrng[1]
+            )
             if xhigh is not None:
                 self.xrng=[xlow, xhigh]
 
-
     def adjProfile(self, proj):
-        flipit = mesbox.askyesno("Question", "Flip the profile (left to right)?")
+        flipit = mesbox.askyesno(
+            "Question",
+            "Flip the profile (left to right)?"
+        )
         if flipit:
             proj.flipProfile()
-        minPos = sd.askfloat("Input", "Start x coordinate", initialvalue=self.xrng[0])
+        minPos = sd.askfloat(
+            "Input",
+            "Start x coordinate",
+            initialvalue=self.xrng[0]
+        )
         if minPos is not None:
-            maxPos = sd.askfloat("Input", "End x coordinate", initialvalue=self.xrng[1])
+            maxPos = sd.askfloat(
+                "Input",
+                "End x coordinate",
+                initialvalue=self.xrng[1]
+            )
             if maxPos is not None:
                 proj.adjProfile(minPos=minPos, maxPos=maxPos)
                 self.xrng=[minPos, maxPos]
-
 
     def setZeroTime(self, proj):
         newZeroTime = sd.askfloat("Input", "New zero time")
@@ -1255,15 +1287,15 @@ class GPRPyApp:
         if getattr(proj, "data", None) is None:
             print('Need to load data first')
             return
-        # dewow_gui = DeWowGui(
-        #     self.window,
-        #     proj,
-        # )
-        # window = dewow_gui.ask_for_window()
-        window = sd.askinteger(
-            "Input",
-            "Dewow window width (number of samples)"
+        dewow_gui = DeWowGui(
+            self.window,
+            proj,
         )
+        window = dewow_gui.ask_for_window()
+        # window = sd.askinteger(
+        #     "Input",
+        #     "Dewow window width (number of samples)"
+        # )
         if window is not None:
             proj.dewow(window=window)
 
@@ -1624,7 +1656,6 @@ class GPRPyApp:
                 proj.history.append(histstr)
         print("Saved figure as %s" %(figname+'.pdf'))
 
-
     def getDelimiter(self):
         commaQuery = tk.Toplevel(self.window)
         commaQuery.title("Comma or tab separated?")
@@ -1638,9 +1669,11 @@ class GPRPyApp:
                                 command = lambda: [self.setComma(),
                                                    commaQuery.destroy()])
         commaButton.pack(side="left")
-        tabButton = tk.Button(commaQuery, text="tab", width=10,
-                              command = lambda: [self.setTab(),
-                                                 commaQuery.destroy()])
+        tabButton = tk.Button(
+            commaQuery, text="tab", width=10,
+            command=lambda: [self.setTab(),
+            commaQuery.destroy()]
+        )
         tabButton.pack(side="right")
         # self.window.frame().tansient(self.window)
         # self.window.frame().grab_set()
@@ -1653,7 +1686,6 @@ class GPRPyApp:
     def setTab(self):
         self.delimiter = '\t'
         print("Delimiter set to tab")
-
 
 # root = tk.Tk()
 

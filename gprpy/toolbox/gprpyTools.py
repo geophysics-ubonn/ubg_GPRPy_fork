@@ -252,7 +252,7 @@ def tpowGain(data,twtt,power):
 
 def agcGain(data,window):
     '''
-    Apply automated gain controll (AGC) by normalizing the energy
+    Apply automated gain control (AGC) by normalizing the energy
     of the signal over a given window width in each trace
 
     INPUT:
