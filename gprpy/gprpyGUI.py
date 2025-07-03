@@ -365,7 +365,14 @@ class DeWowGui(object):
         # now draw the trace
         self._update_figure()
 
-        return None
+        print('Waiting for window to close')
+        twin.wait_window()
+        window_size = self.widgets['entry_var_window'].get()
+        print('dewow window closed, we use {} as the window size'.format(
+            window_size
+        ))
+
+        return window_size
 
 
 class GPRPyApp:
@@ -929,42 +936,47 @@ class GPRPyApp:
         # Export to VTK
         VTKButton = tk.Button(
             text="export to VTK", fg="black",
-            command = lambda : self.exportVTK(proj))
-        VTKButton.config(height = 1, width = 2*halfwid)
-        VTKButton.grid(row=20, column=rightcol, sticky='nsew', columnspan=colsp)
-        self.balloon.bind(VTKButton,
-                          "Exports the processed figure to a\n"
-                          "VTK format, that can be read by\n"
-                          "Paraview or similar 3D programs.")
-
-
-
+            command=lambda: self.exportVTK(proj))
+        VTKButton.config(height=1, width=2*halfwid)
+        VTKButton.grid(
+            row=20, column=rightcol, sticky='nsew', columnspan=colsp)
+        self.balloon.bind(
+            VTKButton,
+            "Exports the processed figure to a\n"
+            "VTK format, that can be read by\n"
+            "Paraview or similar 3D programs."
+        )
 
         # Write script
         HistButton = tk.Button(
             text="write script", fg="black",
-            command=lambda : self.writeHistory(proj))
-        HistButton.config(height = 1, width = 2*halfwid)
-        HistButton.grid(row=21, column=rightcol, sticky='nsew', columnspan=colsp)
-        self.balloon.bind(HistButton,
-                          'Writes a python script to reproduce the \n'
-                          'current status.\n'
-                          '\n'
-                          'If the current data is from a .gpr file, \n'
-                          'then the python script will contain all \n'
-                          'steps going back to the raw data. \n'
-                          '\n'
-                          'The script will not contain visualization \n'
-                          'settings such as x-range settings, unless \n'
-                          'the "print figure" command was used. ')
+            command=lambda: self.writeHistory(proj))
+        HistButton.config(height=1, width=2*halfwid)
+        HistButton.grid(
+            row=21, column=rightcol, sticky='nsew', columnspan=colsp)
+        self.balloon.bind(
+            HistButton,
+            'Writes a python script to reproduce the \n'
+            'current status.\n'
+            '\n'
+            'If the current data is from a .gpr file, \n'
+            'then the python script will contain all \n'
+            'steps going back to the raw data. \n'
+            '\n'
+            'The script will not contain visualization \n'
+            'settings such as x-range settings, unless \n'
+            'the "print figure" command was used. '
+        )
 
         TraceButton = tk.Button(
             text="Show Trace",
             fg="black",
-            command=lambda : self.show_trace(proj),
+            command=lambda: self.show_trace(proj),
         )
-        TraceButton.config(height = 1, width = 2*halfwid)
-        TraceButton.grid(row=22, column=rightcol, sticky='nsew', columnspan=colsp)
+        TraceButton.config(height=1, width=2*halfwid)
+        TraceButton.grid(
+            row=22, column=rightcol, sticky='nsew', columnspan=colsp
+        )
         self.balloon.bind(
             TraceButton,
             'Show a trace'
@@ -1055,8 +1067,6 @@ class GPRPyApp:
         fig.tight_layout()
         figure_canvas.draw()
 
-        twin = self.trace_view.get('twin', None)
-
     def show_trace(self, proj):
         if getattr(proj, "data", None) is None:
             print('Need to load data first')
@@ -1096,7 +1106,7 @@ class GPRPyApp:
         )
         entry_trace_nr.bind(
             '<Return>',
-            lambda event : self._show_trace_by_number(
+            lambda event: self._show_trace_by_number(
                 proj,
                 int(entry_var_trace_nr.get())
             )
@@ -1105,7 +1115,7 @@ class GPRPyApp:
         but_go_to_trace = tk.Button(
             twin,
             text='go to trace',
-            command=lambda : self._show_trace_by_number(
+            command=lambda: self._show_trace_by_number(
                 proj,
                 int(entry_var_trace_nr.get())
             ),
@@ -1113,14 +1123,14 @@ class GPRPyApp:
         but_prev = tk.Button(
             twin,
             text='prev trace',
-            command=lambda : self._show_trace_by_number(
+            command=lambda: self._show_trace_by_number(
                 proj, trace_view['trace_nr'] - 1
             ),
         )
         but_next = tk.Button(
             twin,
             text='next trace',
-            command=lambda : self._show_trace_by_number(
+            command=lambda: self._show_trace_by_number(
                 proj, trace_view['trace_nr'] + 1
             ),
         )
@@ -1205,7 +1215,7 @@ class GPRPyApp:
 
     def undo(self, proj):
         if self.picking:
-            self.picked=self.picked[0:-1, :]
+            self.picked = self.picked[0:-1, :]
         else:
             proj.undo()
 
@@ -1216,15 +1226,15 @@ class GPRPyApp:
                 "Input", "Max Y value", initialvalue=self.yrng[1]
             )
             if yhigh is not None:
-                self.prevyrng=self.yrng
-                self.yrng=[ylow, yhigh]
+                self.prevyrng = self.yrng
+                self.yrng = [ylow, yhigh]
 
     def resetYrng(self, proj):
         # Only needed in undo, and only if what you want to
         # undo changed the y axis
         check1 = ("setVelocity" in proj.history[-1])
         if check1 or ("topoCorrect" in proj.history[-1]) and not self.picking:
-            self.yrng=self.prevyrng
+            self.yrng = self.prevyrng
 
     def setAspect(self):
         self.asp = sd.askfloat(
@@ -1232,13 +1242,13 @@ class GPRPyApp:
         )
 
     def setFullView(self, proj):
-        self.xrng=[np.min(proj.profilePos), np.max(proj.profilePos)]
+        self.xrng = [np.min(proj.profilePos), np.max(proj.profilePos)]
         if proj.velocity is None:
-            self.yrng=[np.min(proj.twtt), np.max(proj.twtt)]
+            self.yrng = [np.min(proj.twtt), np.max(proj.twtt)]
         elif proj.maxTopo is None:
-            self.yrng=[np.min(proj.depth), np.max(proj.depth)]
+            self.yrng = [np.min(proj.depth), np.max(proj.depth)]
         else:
-            self.yrng=[
+            self.yrng = [
                 proj.minTopo - np.max(proj.depth),
                 proj.maxTopo - np.min(proj.depth)
             ]
@@ -1253,7 +1263,7 @@ class GPRPyApp:
                 "Input", "Max X value", initialvalue=self.xrng[1]
             )
             if xhigh is not None:
-                self.xrng=[xlow, xhigh]
+                self.xrng = [xlow, xhigh]
 
     def adjProfile(self, proj):
         flipit = mesbox.askyesno(
@@ -1275,13 +1285,12 @@ class GPRPyApp:
             )
             if maxPos is not None:
                 proj.adjProfile(minPos=minPos, maxPos=maxPos)
-                self.xrng=[minPos, maxPos]
+                self.xrng = [minPos, maxPos]
 
     def setZeroTime(self, proj):
         newZeroTime = sd.askfloat("Input", "New zero time")
         if newZeroTime is not None:
             proj.setZeroTime(newZeroTime=newZeroTime)
-
 
     def dewow(self, proj):
         if getattr(proj, "data", None) is None:
@@ -1299,27 +1308,23 @@ class GPRPyApp:
         if window is not None:
             proj.dewow(window=window)
 
-
     def smooth(self, proj):
         window = sd.askinteger(
             "Input",
-           "Smoothing window width (number of samples)"
+            "Smoothing window width (number of samples)"
         )
         if window is not None:
             proj.smooth(window=window)
-
 
     def remMeanTrace(self, proj):
         ntraces = sd.askinteger("Input", "Remove mean over how many traces?")
         if ntraces is not None:
             proj.remMeanTrace(ntraces=ntraces)
 
-
     def tpowGain(self, proj):
         power = sd.askfloat("Input", "Power for tpow gain?")
         if power is not None:
             proj.tpowGain(power=power)
-
 
     def agcGain(self, proj):
         window = sd.askinteger("Input", "Window length for AGC?")
@@ -1340,23 +1345,25 @@ class GPRPyApp:
                 proj.cut(minX, maxX)
 
     def setVelocity(self, proj):
-        velocity =  sd.askfloat("Input", "Radar wave velocity [m/ns]?")
+        velocity = sd.askfloat("Input", "Radar wave velocity [m/ns]?")
         if velocity is not None:
             proj.setVelocity(velocity)
-            self.prevyrng=self.yrng
-            self.yrng=[0, np.max(proj.depth)]
+            self.prevyrng = self.yrng
+            self.yrng = [0, np.max(proj.depth)]
 
     def antennaSep(self, proj):
         if proj.velocity is None:
-            mesbox.showinfo("Antenna Sep Error", "You have to set the velocity first")
+            mesbox.showinfo(
+                "Antenna Sep Error", "You have to set the velocity first"
+            )
         proj.antennaSep()
-
 
     def fkMigration(self, proj):
         if proj.velocity is None:
-            mesbox.showinfo("Migration Error", "You have to set the velocity first")
+            mesbox.showinfo(
+                "Migration Error", "You have to set the velocity first"
+            )
         proj.fkMigration()
-
 
     def profileSmooth(self, proj):
         ntraces = sd.askinteger("Input", "Smooth over how many traces?")
@@ -1376,16 +1383,18 @@ class GPRPyApp:
             )
             return
         topofile = fd.askopenfilename()
-        if topofile is not '':
+        if topofile != '':
             out = self.getDelimiter()
+            out
             proj.topoCorrect(topofile, self.delimiter)
-            self.prevyrng=self.yrng
-            self.yrng=[proj.minTopo - np.max(proj.depth), proj.maxTopo]
+            self.prevyrng = self.yrng
+            self.yrng = [proj.minTopo - np.max(proj.depth), proj.maxTopo]
 
     def startPicking(self, proj, fig, a, canvas):
         self.picking = True
         self.picked = np.asmatrix(np.empty((0, 2)))
         print("Picking mode on")
+
         def addPoint(event):
             self.picked = np.append(
                 self.picked, np.asmatrix([event.xdata, event.ydata]), axis=0
@@ -1394,45 +1403,49 @@ class GPRPyApp:
             print(self.picked)
         self.pick_cid = canvas.mpl_connect('button_press_event', addPoint)
 
-
-
     def stopPicking(self, proj, canvas):
         filename = fd.asksaveasfilename()
-        if filename is not '':
+        if filename != '':
             self.picking = False
             canvas.mpl_disconnect(self.pick_cid)
             print("Picking mode off")
             np.savetxt(filename+'_profile.txt', self.picked, delimiter='\t')
-            print('saved picked file as "%s"' %(filename+'_profile.txt'))
+            print('saved picked file as "%s"' % (filename + '_profile.txt'))
             # If we have 3D info, also plot it as 3D points
             if proj.threeD is not None:
                 # First calculate along-track points
-                topoVal = proj.threeD[:, 2]
+                # topoVal = proj.threeD[:, 2]
                 npos = proj.threeD.shape[0]
                 steplen = np.sqrt(
-                    np.power( proj.threeD[1:npos, 0]-proj.threeD[0:npos-1, 0] , 2.0) +
-                    np.power( proj.threeD[1:npos, 1]-proj.threeD[0:npos-1, 1] , 2.0) +
-                    np.power( proj.threeD[1:npos, 2]-proj.threeD[0:npos-1, 2] , 2.0)
+                    np.power(
+                        proj.threeD[1:npos, 0] - proj.threeD[0:npos-1, 0], 2.0
+                    ) +
+                    np.power(
+                        proj.threeD[1:npos, 1] - proj.threeD[0:npos-1, 1], 2.0
+                    ) + np.power(
+                        proj.threeD[1:npos, 2] - proj.threeD[0:npos-1, 2], 2.0
+                    )
                 )
                 alongdist = np.cumsum(steplen)
                 topoPos = np.append(0, alongdist)
                 pick3D = np.zeros((self.picked.shape[0], 3))
                 # If profile is adjusted, need to start the picked at zero.
-                pickProfileShifted = self.picked[:, 0] - np.min(proj.profilePos)
-                #for i in range(0, 3):
+                pickProfileShifted = self.picked[:, 0] - np.min(
+                    proj.profilePos
+                )
+                # for i in range(0, 3):
                 for i in range(0, 2):
                     pick3D[:, i] = interp.pchip_interpolate(
                         topoPos,
                         proj.threeD[:, i],
                         pickProfileShifted
                     ).squeeze()
-                        #self.picked[:, 0]).squeeze()
+                    # self.picked[:, 0]).squeeze()
 
                 pick3D[:, 2] = self.picked[:, 1].squeeze()
 
                 np.savetxt(filename+'_3D.txt', pick3D, delimiter='\t')
-                print('saved picked file as "%s"' %(filename+'_3D.txt'))
-
+                print('saved picked file as "%s"' % (filename + '_3D.txt'))
 
     def loadData(self, proj):
         filename = fd.askopenfilename(
@@ -1455,22 +1468,21 @@ class GPRPyApp:
                     self.yrng = [0, np.max(proj.depth)]
                 else:
                     self.yrng = [proj.maxTopo-np.max(proj.depth), proj.maxTopo]
-            self.asp=None
+            self.asp = None
             # Just in case someone presses undo before changing yrange
-            self.prevyrng=self.yrng
+            self.prevyrng = self.yrng
             print("Loaded " + filename)
             self.window.title("GPRPy (Filename: {})".format(filename))
 
     def saveData(self, proj):
         filename = fd.asksaveasfilename(defaultextension=".gpr")
-        if filename is not '':
+        if filename != '':
             proj.save(filename)
-
 
     def exportVTK(self, proj):
         outfile = fd.asksaveasfilename()
-        if outfile is not '':
-            #thickness = sd.askfloat("Input", "Profile thickness [m]")
+        if outfile != '':
+            # thickness = sd.askfloat("Input", "Profile thickness [m]")
             thickness = 0
             if self.asp is None:
                 aspect = 1.0
@@ -1504,17 +1516,16 @@ class GPRPyApp:
 
     def writeHistory(self, proj):
         filename = fd.asksaveasfilename(defaultextension=".py")
-        if filename is not '':
+        if filename != '':
             proj.writeHistory(filename)
             print("Wrote script to " + filename)
-
 
     def plotProfileData(self, proj, fig, a, canvas):
         # Clear cursor coordinate cid if if exists to avoid multiple instances
         if 'self.cursor_cid' in locals():
             canvas.mpl_disconnect(self.cursor_cid)
-        dx=proj.profilePos[3]-proj.profilePos[2]
-        dt=proj.twtt[3]-proj.twtt[2]
+        dx = proj.profilePos[3] - proj.profilePos[2]
+        dt = proj.twtt[3] - proj.twtt[2]
         a.clear()
         stdcont = np.nanmax(np.abs(proj.data)[:])
         if proj.velocity is None:
@@ -1618,17 +1629,28 @@ class GPRPyApp:
         self.cursor_cid = canvas.mpl_connect('button_press_event', moved)
         tag = canvas.get_tk_widget().create_text(20, 20, text="", anchor="nw")
 
-        canvas.get_tk_widget().grid(row=2, column=0, columnspan=figcolsp, rowspan=figrowsp, sticky='nsew')
+        canvas.get_tk_widget().grid(
+            row=2, column=0,
+            columnspan=figcolsp, rowspan=figrowsp, sticky='nsew'
+        )
         canvas.draw()
-
 
     # Show hyperbola
     def showHyp(self, proj, a):
-        x0 = sd.askfloat("Input", "Hyperbola center on profile [m]", initialvalue=self.hypx)
+        x0 = sd.askfloat(
+            "Input",
+            "Hyperbola center on profile [m]", initialvalue=self.hypx
+        )
         if x0 is not None:
-            t0 = sd.askfloat("Input", "Hyperbola apex location (time [ns])", initialvalue=self.hypt)
+            t0 = sd.askfloat(
+                "Input",
+                "Hyperbola apex location (time [ns])", initialvalue=self.hypt
+            )
             if t0 is not None:
-                v  = sd.askfloat("Input", "Estimated velocity [m/ns]", initialvalue=self.hypv)
+                v  = sd.askfloat(
+                    "Input",
+                    "Estimated velocity [m/ns]", initialvalue=self.hypv
+                )
                 if v is not None:
                     y=proj.profilePos-x0
                     d=v*t0/2.0
@@ -1665,14 +1687,22 @@ class GPRPyApp:
             fg='red'
         )
         text.pack(padx=10, pady=10)
-        commaButton = tk.Button(commaQuery, text="comma", width=10,
-                                command = lambda: [self.setComma(),
-                                                   commaQuery.destroy()])
+        commaButton = tk.Button(
+            commaQuery, text="comma", width=10,
+            command = lambda: [
+                self.setComma(),
+                commaQuery.destroy()
+            ]
+        )
         commaButton.pack(side="left")
         tabButton = tk.Button(
-            commaQuery, text="tab", width=10,
-            command=lambda: [self.setTab(),
-            commaQuery.destroy()]
+            commaQuery,
+            text="tab",
+            width=10,
+            command=lambda: [
+                self.setTab(),
+                commaQuery.destroy()
+            ]
         )
         tabButton.pack(side="right")
         # self.window.frame().tansient(self.window)
