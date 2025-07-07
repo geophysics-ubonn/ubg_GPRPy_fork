@@ -9,7 +9,7 @@ import gprpy.toolbox.gprIO_MALA as gprIO_MALA
 import gprpy.toolbox.gprpyTools as tools
 try:
     import gprpy.irlib.external.mig_fk as mig_fk
-except:
+except Exception:
     print("Install fk migration if needed")
 import copy
 import scipy.interpolate as interp
@@ -210,6 +210,8 @@ class gprpyProfile:
                 "No simulation results found: {}".format(gprmax_output)
 
             def parse_gprmax_input(gprmax_infile):
+                """Parse a gprmax .in file
+                """
                 lines = open(gprmax_infile, 'r').readlines()
                 # we are interested in these items that only occur once in the
                 # gprmax input file
@@ -217,7 +219,9 @@ class gprpyProfile:
                     'dx_dy_dz',
                     'time_window',
                     'waveform',
+                    # initial receiver positions
                     'rx',
+                    # initial source position
                     'hertzian_dipole',
                     'rx_steps',
                     'src_steps',
@@ -285,8 +289,6 @@ class gprpyProfile:
 
             # convert to [ns]
             self.info["Total_time_window"] /= 1e-9
-            # import IPython
-            # IPython.embed()
 
             # profile positions:
             # I'm not really sure how to handle this properly.
@@ -315,10 +317,10 @@ class gprpyProfile:
             print('tx', positions_tx)
             print('centers', positions_center)
 
-            if np.all(distances == distances[0]):
+            if np.allclose(distances, distances[0]):
                 print('Assuming PROFILE data')
                 # assume profile
-                self.profilePos = np.array(positions_x)
+                self.profilePos = np.array(positions_center)
             else:
                 print('Assuming CMP/WARR data')
                 # assume cmp/warr
@@ -327,12 +329,8 @@ class gprpyProfile:
                 )
                 print(self.profilePos)
 
-            # self.profilePos = np.linspace(
-            #     self.info["Start_pos"],
-            #     self.info["Final_pos"],
-            #     self.info["N_traces"]
-            # )
-
+            # import IPython
+            # IPython.embed()
             self.data = np.matrix(traces)
 
             self.antsep = self.info["Antenna_sep"] # Set to m in the loading routine
