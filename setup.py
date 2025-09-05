@@ -1,13 +1,17 @@
+import setuptools
+
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-    
 setuptools.setup(
     name="gprpy",
     version="1.0.14",
     author="Alain Plattner",
     author_email="plattner@alumni.ethz.ch",
-    description="GPRPy - open source ground penetrating radar processing and visualization",
+    description="".join((
+        "GPRPy - open source ground penetrating radar processing ",
+        "and visualization",
+    )),
     entry_points={'console_scripts': ['gprpy = gprpy.__main__:main']},
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -31,5 +35,12 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    install_requires=['tqdm','numpy','scipy','matplotlib','Pmw','pyevtk']
+    install_requires=[
+        'tqdm',
+        'numpy',
+        'scipy',
+        'matplotlib',
+        'Pmw',
+        'pyevtk'
+    ]
 )
