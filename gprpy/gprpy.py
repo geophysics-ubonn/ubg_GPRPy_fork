@@ -345,6 +345,9 @@ class gprpyProfile:
             # Initialize previous
             self.initPrevious()
 
+            histstr = "mygpr.importdata('%s')" %(filename)
+            self.history.append(histstr)
+
         else:
             print("Can only read dt1, DT1, hd, HD, DZT, dat, GPRhdr, rad, rd3, rd7, and gpr files")
 
