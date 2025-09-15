@@ -444,7 +444,8 @@ class gprpyProfile:
 
 
     # This is a helper function
-    def prepProfileFig(self, color="gray", contrast=1.0, yrng=None, xrng=None, asp=None):
+    def prepProfileFig(self, color="gray", contrast=1.0, yrng=None,
+                       xrng=None, asp=None):
         '''
         This is a helper function.
         It prepares the plot showing the processed profile data.
@@ -467,8 +468,8 @@ class gprpyProfile:
         ax           figure axis
 
         '''
-        dx=self.profilePos[3]-self.profilePos[2]
-        dt=self.twtt[3]-self.twtt[2]
+        dx = self.profilePos[3]-self.profilePos[2]
+        dt = self.twtt[3]-self.twtt[2]
         stdcont = np.nanmax(np.abs(self.data)[:])
 
         if self.velocity is None:
