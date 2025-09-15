@@ -1,15 +1,15 @@
 import gprpy.gprpy as gp
 import gprpy.toolbox.gprpyTools as tools
 import numpy as np
-import copy
+# import copy
 import scipy.interpolate as interp
-from scipy.interpolate import griddata
+# from scipy.interpolate import griddata
 from pyevtk.hl import gridToVTK
 from tqdm import tqdm
 from scipy.ndimage import gaussian_filter
 
 
-def reduceSampling(gpr,nprofile,ntwtt):
+def reduceSampling(gpr, nprofile, ntwtt):
     '''
     Helper function to coarsen the input data in order
     to reduce memory and computational cost. This could
@@ -21,7 +21,7 @@ def reduceSampling(gpr,nprofile,ntwtt):
     ntwtt        number of samples along the travel time
     '''
 
-    #gpr2 = copy.copy(gpr)
+    # gpr2 = copy.copy(gpr)
     if gpr.data_pretopo is None:
         data = gpr.data
         twtt = gpr.twtt
@@ -41,36 +41,41 @@ def reduceSampling(gpr,nprofile,ntwtt):
     # This could also be done using scipy's zoom function
     # Both, aplong profile and twtt at the same time
     # First reduce along profile
-    datared = np.asarray(np.zeros((twtt.shape[0],nprofile)))
+    datared = np.asarray(np.zeros((twtt.shape[0], nprofile)))
     profilePosred = np.asarray(np.zeros(nprofile))
-    for i in range(0,nprofile):
-        datared[:,i] = np.mean(data[:,i*samplewidth:(i+1)*samplewidth],1).flatten()
-        profilePosred[i]=np.mean(gpr.profilePos[i*samplewidth:(i+1)*samplewidth])
+    for i in range(0, nprofile):
+        datared[:, i] = np.mean(
+            data[:, i * samplewidth: (i + 1) * samplewidth], 1).flatten()
+        profilePosred[i] = np.mean(
+            gpr.profilePos[i * samplewidth: (i + 1) * samplewidth]
+        )
     data = datared
     gpr.profilePos = profilePosred
 
     # Now reduce along twtt
-    samplewidth = int(np.round(data.shape[0]/ntwtt))
-    ntwtt = int(np.ceil(data.shape[0]/samplewidth))
-    datared = np.asarray(np.zeros((ntwtt,nprofile)))
+    samplewidth = int(np.round(data.shape[0] / ntwtt))
+    ntwtt = int(np.ceil(data.shape[0] / samplewidth))
+    datared = np.asarray(np.zeros((ntwtt, nprofile)))
     twttred = np.asarray(np.zeros(ntwtt))
-    for i in range(0,ntwtt):
-        datared[i,:] = np.mean(data[i*samplewidth:(i+1)*samplewidth],0)
-        twttred[i] = np.mean(twtt[i*samplewidth:(i+1)*samplewidth])
+    for i in range(0, ntwtt):
+        datared[i, :] = np.mean(
+            data[i * samplewidth: (i + 1) * samplewidth], 0
+        )
+        twttred[i] = np.mean(twtt[i * samplewidth: (i + 1) * samplewidth])
     if gpr.data_pretopo is None:
         gpr.data = datared
         gpr.twtt = twttred
-        gpr.depth = gpr.twtt*gpr.velocity/2.0
+        gpr.depth = gpr.twtt * gpr.velocity / 2.0
     else:
         gpr.data_pretopo = datared
         gpr.twtt_pretopo = twttred
-        gpr.depth = twttred*gpr.velocity/2.0
+        gpr.depth = twttred * gpr.velocity / 2.0
 
     return gpr
 
 
-
-def makeDataCube(datalist,outname,nx=50,ny=50,nz=50,smooth=None,nprofile=None,ndepth=None,method='nearest',absvals=False):
+def makeDataCube(datalist, outname, nx=50, ny=50, nz=50, smooth=None,
+                 nprofile=None, ndepth=None, method='nearest', absvals=False):
     '''
     Creates an interpolated data cube from a list of .gpr (GPRPy)
     preprocessed files. Allows for subsampling (to reduce computational
@@ -105,102 +110,159 @@ def makeDataCube(datalist,outname,nx=50,ny=50,nz=50,smooth=None,nprofile=None,nd
                   [default: False]
     '''
 
-
     # Read all profiles to find out total data size
     totlen = 0
     totprof = 0
-    for i in range(0,len(datalist)):
-        gpr=gp.gprpyProfile(datalist[i])
+    for i in range(0, len(datalist)):
+        gpr = gp.gprpyProfile(datalist[i])
         if gpr.data_pretopo is None:
-            totlen = totlen + gpr.data.shape[0]*gpr.data.shape[1]
+            totlen = totlen + gpr.data.shape[0] * gpr.data.shape[1]
             totprof = totprof + gpr.data.shape[1]
         else:
-            totlen = totlen +  gpr.data_pretopo.shape[0]*gpr.data_pretopo.shape[1]
+            totlen = totlen + gpr.data_pretopo.shape[
+                0
+            ] * gpr.data_pretopo.shape[1]
             totprof = totprof + gpr.data_pretopo.shape[1]
 
     # Allocate memory based on nprofile and ndepth. May be overallocating
-    allpoints = np.zeros((totlen,3))
+    allpoints = np.zeros((totlen, 3))
     alldata = np.zeros(totlen)
-    datalength = np.zeros(len(datalist),dtype=int)
+    datalength = np.zeros(len(datalist), dtype=int)
 
-    topopoints = 2*np.zeros((totprof,3))
-    topolength = np.zeros(len(datalist),dtype=int)
+    topopoints = 2 * np.zeros((totprof, 3))
+    topolength = np.zeros(len(datalist), dtype=int)
 
-    npoints=0
+    # npoints = 0
     # Read in all the data points and their topos
     print('Reading in profiles ...')
-    for i in tqdm(range(0,len(datalist))):
+    for i in tqdm(range(0, len(datalist))):
         # These need to have a topo correction
-        gpr=gp.gprpyProfile(datalist[i])
-        gpr=reduceSampling(gpr,nprofile,ndepth)
-        if i==0:
+        gpr = gp.gprpyProfile(datalist[i])
+        gpr = reduceSampling(gpr, nprofile, ndepth)
+        if i == 0:
             currentmaxdepth = np.max(np.abs(gpr.depth))
             depth = gpr.depth
 
         if gpr.data_pretopo is None:
-            datalength[i] = gpr.data.shape[0]*gpr.data.shape[1]
+            datalength[i] = gpr.data.shape[0] * gpr.data.shape[1]
         else:
-            datalength[i] = gpr.data_pretopo.shape[0]*gpr.data_pretopo.shape[1]
+            datalength[i] = gpr.data_pretopo.shape[
+                0
+            ] * gpr.data_pretopo.shape[1]
 
-        x,y,z = tools.prepVTK(gpr.profilePos,gpr.threeD,smooth=False)
+        print('data length', gpr.data.shape)
+
+        x, y, z = tools.prepVTK(gpr.profilePos, gpr.threeD, smooth=False)
+        if i == 1:
+            y += 1
+        if i == 2:
+            y += 2
+        print('XYZ', x, y, z)
+        print('gpr.depth', gpr.depth, gpr.depth.shape)
         topolength[i] = len(x)
 
-        Z = np.reshape(z,(len(z),1)) - np.reshape(gpr.depth,(1,len(gpr.depth)))
+        Z = np.reshape(
+            z,
+            (len(z), 1)
+        ) - np.reshape(gpr.depth, (1, len(gpr.depth)))
+        print('Z', Z.shape)
 
         if np.max(np.abs(gpr.depth)) < currentmaxdepth:
             depth = gpr.depth
             currentmaxdepth = np.max(np.abs(gpr.depth))
 
-        X = np.tile(x,Z.shape[1])
-        Y = np.tile(y,Z.shape[1])
+        X = np.tile(x, Z.shape[1])
+        Y = np.tile(y, Z.shape[1])
 
-        indices = np.asarray(np.arange(np.sum(datalength[0:i]),np.sum(datalength[0:i+1])))
+        indices = np.asarray(
+            np.arange(
+                np.sum(
+                    datalength[0:i]
+                ),
+                np.sum(datalength[0:i+1]))
+        )
 
-        topoindices = np.asarray(np.arange(np.sum(topolength[0:i]),np.sum(topolength[0:i+1])))
+        topoindices = np.asarray(
+            np.arange(
+                np.sum(topolength[0:i]),
+                np.sum(topolength[0:i+1])
+            )
+        )
 
-        allpoints[indices,:] = np.asarray([X.flatten(),
-                                           Y.flatten(),
-                                           Z.flatten()]).transpose()
+        allpoints[indices, :] = np.asarray(
+            [
+                X.flatten(),
+                Y.flatten(),
+                Z.flatten(order='F')
+            ]
+        ).transpose()
+        print('allpoints.shape', allpoints.shape)
 
-        topopoints[topoindices,:] = np.asarray([x,y,z]).squeeze().transpose()
+        topopoints[topoindices, :] = np.asarray(
+            [x, y, z]).squeeze().transpose()
+        print('topopoints', topopoints.shape)
 
         if gpr.data_pretopo is None:
-            data = np.asarray(gpr.data.transpose())
-            #data = np.asarray(gpr.data)
+            # data = np.asarray(gpr.data.transpose())
+            data = np.asarray(gpr.data)
         else:
-            data = np.asarray(gpr.data_pretopo.transpose())
-            #data = np.asarray(gpr.data_pretopo)
+            # data = np.asarray(gpr.data_pretopo.transpose())
+            data = np.asarray(gpr.data_pretopo)
 
-        alldata[indices] = np.reshape(data,(data.shape[0]*data.shape[1]))
+        alldata[indices] = np.reshape(data, (data.shape[0] * data.shape[1]))
 
     # Remove overallocation
-    allpoints = allpoints[0:np.sum(datalength),:]
+    allpoints = allpoints[0:np.sum(datalength), :]
     alldata = alldata[0:np.sum(datalength)]
-    topopoints = topopoints[0:np.sum(topolength),:]
+    topopoints = topopoints[0:np.sum(topolength), :]
 
     # Interpolate
-    xg = np.linspace(np.min(allpoints[:,0]),np.max(allpoints[:,0]),nx)
-    yg = np.linspace(np.min(allpoints[:,1]),np.max(allpoints[:,1]),ny)
-    dg = np.linspace(np.min(depth),np.max(depth),nz)
-    [Xg,Yg] = np.meshgrid(xg,yg)
+    xg = np.linspace(np.min(allpoints[:, 0]), np.max(allpoints[:, 0]), nx)
+    yg = np.linspace(np.min(allpoints[:, 1]), np.max(allpoints[:, 1]), ny)
+    print('nz', nz)
+    dg = np.linspace(np.min(depth), np.max(depth), nz)
+    [Xg, Yg] = np.meshgrid(xg, yg)
 
-    topo = interp.griddata(topopoints[:,0:2],topopoints[:,2],np.asarray([Xg.flatten(),Yg.flatten()]).transpose(),method=method)
-    topo = np.reshape(topo,Xg.shape)
+    topo = interp.griddata(
+        topopoints[:, 0:2],
+        topopoints[:, 2],
+        np.asarray([Xg.flatten(), Yg.flatten()]).transpose(),
+        method=method
+    )
+    topo = np.reshape(topo, Xg.shape)
 
-    Zg = np.reshape(topo,(topo.shape[0],topo.shape[1],1)) - np.reshape(dg,(1,1,len(dg)))
+    Zg = np.reshape(
+        topo,
+        (
+            topo.shape[0],
+            topo.shape[1],
+            1
+        )
+    ) - np.reshape(dg, (1, 1, len(dg)))
+    print('Zg', Zg.shape)
 
+    XXg = (Xg.reshape(
+        (Xg.shape[0], Xg.shape[1], 1))) * (np.ones((1, 1, len(dg))))
+    YYg = (Yg.reshape(
+        (Yg.shape[0], Yg.shape[1], 1))) * (np.ones((1, 1, len(dg))))
 
-    XXg = (Xg.reshape((Xg.shape[0],Xg.shape[1],1)))*(np.ones((1,1,len(dg))))
-    YYg = (Yg.reshape((Yg.shape[0],Yg.shape[1],1)))*(np.ones((1,1,len(dg))))
-
-    intpoints = np.asarray([XXg.flatten(),
-                            YYg.flatten(),
-                            Zg.flatten()]).transpose()
+    intpoints = np.asarray(
+        [
+            XXg.flatten(),
+            YYg.flatten(),
+            Zg.flatten()
+        ]
+    ).transpose()
 
     print('Interpolating data')
-    dataG = interp.griddata(allpoints,alldata,
-                            intpoints,
-                            method=method)
+    dataG = interp.griddata(
+        allpoints,
+        alldata,
+        intpoints,
+        method=method
+    )
+    # import IPython
+    # IPython.embed()
 
     DG = np.reshape(dataG,  XXg.shape)
 
@@ -209,8 +271,12 @@ def makeDataCube(datalist,outname,nx=50,ny=50,nz=50,smooth=None,nprofile=None,nd
 
     # Smooth
     if smooth is not None:
-        DG = gaussian_filter(DG,smooth)
+        DG = gaussian_filter(DG, smooth)
 
-    #gridToVTK(outname,XG,YG,ZG,cellData={'gpr data': DG})
-    gridToVTK(outname,XXg,YYg,Zg,pointData={'gpr data': DG})
+    # gridToVTK(outname,XG,YG,ZG,cellData={'gpr data': DG})
+    gridToVTK(outname, XXg, YYg, Zg, pointData={'gpr data': DG})
+    print('XXg', XXg.shape)
+    print('YYg', YYg.shape)
+    print('Zg', Zg.shape)
 
+#     print('YYg', YYg)
