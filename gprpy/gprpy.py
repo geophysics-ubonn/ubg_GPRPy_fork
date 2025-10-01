@@ -915,8 +915,7 @@ class gprpyProfile:
         self.history.append(histstr)
 
 
-
-    def topoCorrect(self,topofile,delimiter=','):
+    def topoCorrect(self, topofile, delimiter=','):
         '''
         Correct for topography along the profile by shifting each
         Trace up or down depending on a provided ASCII text file
@@ -943,20 +942,26 @@ class gprpyProfile:
         self.storePrevious()
         self.data_pretopo = self.data
         self.twtt_pretopo = self.twtt
-        topoPos, topoVal, self.threeD = tools.prepTopo(topofile,delimiter,self.profilePos[0])
-        self.data, self.twtt, self.maxTopo, self.minTopo = tools.correctTopo(self.data,
-                                                                             velocity=self.velocity,
-                                                                             profilePos=self.profilePos,
-                                                                             topoPos=topoPos,
-                                                                             topoVal=topoVal,
-                                                                             twtt=self.twtt)
+        topoPos, topoVal, self.threeD = tools.prepTopo(
+            topofile,
+            delimiter,
+            self.profilePos[0]
+        )
+        self.data, self.twtt, self.maxTopo, self.minTopo = tools.correctTopo(
+            self.data,
+            velocity=self.velocity,
+            profilePos=self.profilePos,
+            topoPos=topoPos,
+            topoVal=topoVal,
+            twtt=self.twtt
+        )
+
         # Put in history
         if delimiter is ',':
             histstr = "mygpr.topoCorrect('%s')" %(topofile)
         else:
             histstr = "mygpr.topoCorrect('%s',delimiter='\\t')" %(topofile)
         self.history.append(histstr)
-
 
 
     def exportVTK(self,outfile,gpsinfo,delimiter=',',thickness=0,aspect=1.0,smooth=True, win_length=51, porder=3):
@@ -1445,13 +1450,19 @@ class gprpyCW(gprpyProfile):
 
         if stamp is not None:
             stdcont = np.nanmax(np.abs(stamp)[:])
-            plt.imshow(np.flipud(np.abs(stamp)), cmap='inferno',
-                       extent=[np.min(self.vVals)-dv/2.0,
-                               np.max(self.vVals)+dv/2.0,
-                               np.min(self.twtt)-dt/2.0,
-                               np.max(self.twtt)+dt/2.0],
-                       aspect='auto',
-                       vmin=0, vmax=stdcont/saturation)
+            plt.imshow(
+                np.flipud(np.abs(stamp)),
+                cmap='inferno',
+               extent=[
+                   np.min(self.vVals)-dv/2.0,
+                   np.max(self.vVals)+dv/2.0,
+                   np.min(self.twtt)-dt/2.0,
+                   np.max(self.twtt)+dt/2.0
+                ],
+                aspect='auto',
+                vmin=0,
+                vmax=stdcont/saturation
+            )
 
             if yrng is not None:
                 yrng=[np.max(yrng),np.min(yrng)]
@@ -1532,10 +1543,9 @@ class gprpyCW(gprpyProfile):
         showlnhp     show the observed lines and hyperbolae from the list
                      [default: False]
         '''
-
-
+        out_format = kwargs.pop("format", "pdf")
         contrast, color, yrng, xrng, showlnhp = self.prepCWFig(**kwargs)
-        plt.savefig(figname, format='pdf', dpi=dpi)
+        plt.savefig(figname, format=out_format, dpi=dpi)
         plt.close('all')
         # Put what you did in history
         histstr = "mygpr.printCWFigure('%s', color='%s', contrast=%g, yrng=[%g,%g], xrng=[%g,%g], showlnhp=%r, dpi=%d)" %(figname,color,contrast,yrng[0],yrng[1],xrng[0],xrng[1],showlnhp,dpi)
@@ -1558,8 +1568,9 @@ class gprpyCW(gprpyProfile):
                      [default: None, meaning "everything"]
         '''
 
+        out_format = kwargs.pop("format", "pdf")
         whichstamp, saturation, yrng, vrng = self.prepStAmpFig(**kwargs)
-        plt.savefig(figname, format='pdf', dpi=dpi)
+        plt.savefig(figname, format=out_format, dpi=dpi)
         plt.close('all')
         histstr = "mygpr.printStAmpFigure('%s', whichstamp='%s', saturation=%g, yrng=[%g,%g], vrng=[%g,%g])" %(figname, whichstamp, saturation, yrng[0], yrng[1], vrng[0], vrng[1])
         self.history.append(histstr)
