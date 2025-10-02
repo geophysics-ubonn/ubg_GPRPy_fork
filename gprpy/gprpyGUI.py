@@ -1547,7 +1547,7 @@ class GPRPyApp:
             a.set_ylabel("time [ns]", fontsize=mpl.rcParams['font.size'])
             a.invert_yaxis()
         elif proj.maxTopo is None:
-            dy=dt*proj.velocity
+            dy = dt * proj.velocity
             a.imshow(
                 proj.data,
                 cmap=self.color.get(),
@@ -1566,7 +1566,7 @@ class GPRPyApp:
             a.set_xlim(self.xrng)
             a.invert_yaxis()
         else:
-            dy=dt*proj.velocity
+            dy = dt * proj.velocity
             a.imshow(
                 proj.data,
                 cmap=self.color.get(),
@@ -1647,24 +1647,23 @@ class GPRPyApp:
                 "Hyperbola apex location (time [ns])", initialvalue=self.hypt
             )
             if t0 is not None:
-                v  = sd.askfloat(
+                v = sd.askfloat(
                     "Input",
                     "Estimated velocity [m/ns]", initialvalue=self.hypv
                 )
                 if v is not None:
-                    y=proj.profilePos-x0
-                    d=v*t0/2.0
-                    k=np.sqrt(d**2 + np.power(y, 2))
-                    t2=2*k/v
+                    y = proj.profilePos - x0
+                    d = v * t0 / 2.0
+                    k = np.sqrt(d**2 + np.power(y, 2))
+                    t2 = 2 * k / v
                     a.plot(proj.profilePos, t2, '--c', linewidth=3)
                     self.hypx = x0
                     self.hypt = t0
                     self.hypv = v
 
-
     def printProfileFig(self, proj, fig):
         figname = fd.asksaveasfilename(defaultextension=".pdf")
-        if figname is not '':
+        if figname != '':
             dpi = sd.askinteger(
                 "Input", "Resolution in dots per inch? (Recommended: 600)"
             )
