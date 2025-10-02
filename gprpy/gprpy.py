@@ -12,8 +12,9 @@ try:
 except Exception:
     print("Install fk migration if needed")
 import copy
-import scipy.interpolate as interp
+# import scipy.interpolate as interp
 from pyevtk.hl import gridToVTK
+
 
 class gprpyProfile:
     '''
@@ -21,7 +22,7 @@ class gprpyProfile:
     for common-offset profiles.
     '''
 
-    def __init__(self,filename=None):
+    def __init__(self, filename=None):
         '''
         Initialization for a gprpyProfile object. Initialization can be
         empty or with a provided filename for the GPR data.
@@ -40,7 +41,7 @@ class gprpyProfile:
         if filename is not None:
             self.importdata(filename)
 
-    def importdata(self,filename):
+    def importdata(self, filename):
         '''
         Loads .gpr (native GPRPy), .DT1 (Sensors and Software),
         .DZT (GSSI), .GPRhdr (ENVI standard BSQ), .rad (MALA)
@@ -582,7 +583,7 @@ class gprpyProfile:
 
     ####### Processing #######
 
-    def adjProfile(self,minPos,maxPos):
+    def adjProfile(self, minPos, maxPos):
         '''
         Adjusts the length of the profile.
 
@@ -593,7 +594,7 @@ class gprpyProfile:
         # Store previous state for undo
         self.storePrevious()
         # set new profile positions
-        self.profilePos = np.linspace(minPos,maxPos,len(self.profilePos))
+        self.profilePos = np.linspace(minPos, maxPos, len(self.profilePos))
         # Put what you did in history
         histstr = "mygpr.adjProfile(%g,%g)" %(minPos,maxPos)
         self.history.append(histstr)
@@ -915,7 +916,7 @@ class gprpyProfile:
         self.history.append(histstr)
 
 
-    def topoCorrect(self, topofile, delimiter=','):
+    def topoCorrect(self, topofile, delimiter=',', adjustx=False):
         '''
         Correct for topography along the profile by shifting each
         Trace up or down depending on a provided ASCII text file
@@ -934,6 +935,8 @@ class gprpyProfile:
         topofile      file name for ASCII text topography information
         delimiter     how the entries are delimited (by comma, or by tab)
                       [default: ',']. To set tab: delimiter='\t'
+        adjustx       If True, then adjust the profile x-range to the min/max
+                      values found in the topo file
         '''
         if self.velocity is None:
             print("First need to set velocity!")
@@ -947,6 +950,9 @@ class gprpyProfile:
             delimiter,
             self.profilePos[0]
         )
+        if adjustx:
+            self.adjProfile(topoPos.min(), topoPos.max())
+
         self.data, self.twtt, self.maxTopo, self.minTopo = tools.correctTopo(
             self.data,
             velocity=self.velocity,
@@ -960,7 +966,11 @@ class gprpyProfile:
         if delimiter is ',':
             histstr = "mygpr.topoCorrect('%s')" %(topofile)
         else:
-            histstr = "mygpr.topoCorrect('%s',delimiter='\\t')" %(topofile)
+            histstr = "mygpr.topoCorrect(" 
+            histstr += "'{}', delimiter='\\t', adjustx={})".format(
+                topofile,
+                adjustx
+            )
         self.history.append(histstr)
 
 
