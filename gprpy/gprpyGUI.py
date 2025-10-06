@@ -10,6 +10,7 @@ import numpy as np
 import os
 import Pmw
 import scipy.interpolate as interp
+import scipy.signal as signal
 
 import tkinter as tk
 from tkinter import filedialog as fd
@@ -17,6 +18,7 @@ from tkinter import simpledialog as sd
 from tkinter import messagebox as mesbox
 
 import matplotlib as mpl
+import matplotlib.pylab as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
 from matplotlib.figure import Figure
@@ -32,6 +34,871 @@ rightcol = 9
 halfwid = 6
 figrowsp = 21 + 1
 figcolsp = 9
+
+
+class Bandpass(object):
+    """Bandpass stuff
+    """
+    def __init__(self, proj):
+        """
+        Parameters
+        ----------
+        proj:
+            the project object
+        """
+        self.proj = proj
+        self.data = proj.data
+        # self.times_ns = proj.twtt
+
+        self.fig = Figure()
+        self.axes = [
+            self.fig.add_subplot(2, 1, 1),
+            self.fig.add_subplot(2, 1, 2),
+        ]
+
+    def apply_bandpass(self, data, lowcut, highcut, order=5):
+        """
+        Parameters
+        ----------
+        data : numpy.ndarray
+            The data to filter
+
+
+        """
+        # [Hz]
+        fs = 1 / np.abs(
+            self.proj.twtt[1] - self.proj.twtt[0]
+        ) * 1e9
+        # fs_rad = 2 * np.pi * fs
+        print('Bandpass')
+        print('Sampling frequency:', fs, "[Hz], ", fs / 1e6, " MHz")
+        print('lowcut/highcut', lowcut, highcut)
+        nyq = 0.5 * fs
+        low = lowcut / nyq
+        # highcut = 1 / (13 * 3600)
+        high = highcut / nyq
+        print(low, high)
+        sos = signal.butter(
+            order, [low, high], analog=False, btype='band', output='sos'
+        )
+
+        w, h = signal.sosfreqz(sos, fs=fs, worN=1500)
+        data_filtered = signal.sosfiltfilt(sos, data)
+
+        fig, axes = plt.subplots(2, 1)
+
+        db = 20*np.log10(np.maximum(np.abs(h), 1e-5))
+        ax = axes[0]
+        # hours = 1 / (w / np.pi * nyq * 3600)
+        ax.plot(w, db)
+        # ax.plot(w/np.pi / nyq, db)
+        ax.grid()
+        ax.set_xscale('log')
+        ax.set_xlabel('Frequency [Hz]')
+
+        ax = axes[1]
+        ax.plot(w/np.pi, np.angle(h))
+        ax.set_yticks(
+            [-np.pi, -0.5*np.pi, 0, 0.5*np.pi, np.pi],
+            [r'$-\pi$', r'$-\pi/2$', '0', r'$\pi/2$', r'$\pi$']
+        )
+
+        fig.tight_layout()
+        # fig.savefig('but_band.jpg', dpi=300)
+        return data_filtered, fig
+
+
+class BandpassGui(object):
+    """Provide
+    """
+    def __init__(self, window_obj, proj):
+        self.proj = proj
+        self.data = proj.data
+        self.times_ns = proj.twtt
+        # TODO: rename, this is the window object of tkinter
+        self.window = window_obj
+
+        self.twin = None
+
+    def _place_widgets(self):
+        self.widgets['label_trace_nr'].grid(
+            column=0,
+            row=0,
+        )
+        self.widgets['entry_trace_nr'].grid(
+            column=1,
+            row=0,
+        )
+        self.widgets['but_go_to_trace'].grid(
+            column=2,
+            row=0,
+        )
+        self.widgets['but_prev'].grid(
+            column=3,
+            row=0,
+        )
+        self.widgets['but_next'].grid(
+            column=4,
+            row=0,
+        )
+        self.widgets['check_keep_plot'].grid(
+            column=5,
+            row=0,
+        )
+
+        self.widgets['label_centerf'].grid(column=0, row=1)
+        self.widgets['entry_centerf'].grid(column=1, row=1)
+        self.widgets['label_window'].grid(column=2, row=1)
+        self.widgets['entry_window'].grid(column=3, row=1)
+
+        self.figure_canvas.get_tk_widget().grid(
+            column=0,
+            row=2,
+            columnspan=6,
+            sticky=tk.N+tk.W+tk.S+tk.E,
+        )
+
+        self.toolbar.grid(
+            column=0,
+            row=3,
+            sticky=tk.N+tk.W,
+            columnspan=6,
+        )
+
+    def _update_figure(self):
+        trace_nr = int(
+            self.widgets['entry_var_trace_nr'].get()
+        )
+        proj = self.proj
+        print('requested trace_nr:', trace_nr)
+        total_nr_of_traces = proj.data.shape[1]
+        if trace_nr < 0:
+            print('< 0')
+            trace_nr = total_nr_of_traces + trace_nr
+            print(trace_nr)
+            if trace_nr >= total_nr_of_traces:
+                # do not try harder
+                print('bad')
+                return
+
+        # always show the largest trace
+        trace_nr = min(trace_nr, total_nr_of_traces - 1)
+        # alternative: wrap around
+        # trace_nr = trace_nr % total_nr_of_traces
+        print('Visualising trace: {}'.format(trace_nr))
+        subdata = np.array(self.data[:, trace_nr]).squeeze()
+
+        # apply dewow
+        window_length = self.widgets['entry_var_window'].get()
+        # import IPython
+        # IPython.embed()
+        subdata_dwow = tools.dewow(
+            np.matrix(
+                np.atleast_2d(subdata).T
+            ),
+            window_length
+        )
+
+        times = proj.twtt * 1e-9
+        time_delta = times[1] - times[0]
+        # use at least 1e4 data points to get a smooth curve
+        # n = int(max(subdata.size, 1e4))
+        n = subdata.size
+        rfft = np.fft.rfft(
+            subdata,
+            n=n,
+        ).squeeze()
+        rfft_times = np.fft.rfftfreq(
+            n,
+            d=time_delta
+        ).squeeze()
+
+        n_dw = subdata_dwow.squeeze().size
+        rfft_dw = np.fft.rfft(
+            subdata_dwow.squeeze(),
+            n=n_dw,
+        ).squeeze()
+        rfft_times_dw = np.fft.rfftfreq(
+            n_dw,
+            d=time_delta
+        ).squeeze()
+
+        keep_plot = bool(self.widgets['check_var_keep_plot'].get())
+        axes = self.axes
+        figure_canvas = self.figure_canvas
+        fig = self.fig
+        # entry_var_trace_nr = self.widgets['entry_var_trace_nr']
+
+        ax = axes[0]
+        if not keep_plot:
+            ax.cla()
+        ax.plot(
+            times / 1e-9,
+            subdata,
+            color='gray',
+            label='original',
+        )
+        ax.plot(
+            times / 1e-9,
+            subdata_dwow,
+            label='dewow',
+        )
+        ax.legend(fontsize=7, ncols=2)
+        ax.set_xlabel('Time [ns]', fontsize=8)
+        ax.grid()
+        ax.set_ylabel('Signal', fontsize=8)
+
+        ax.set_title(
+            'trace',
+            loc='left',
+            fontsize=8,
+        )
+        ax = axes[1]
+        if not keep_plot:
+            ax.cla()
+        ax.plot(
+            # [Mhz]
+            rfft_times / 1e6,
+            np.abs(rfft),
+            label='original',
+            color='gray',
+        )
+        ax.plot(
+            # [Mhz]
+            rfft_times_dw / 1e6,
+            np.abs(rfft_dw),
+            label='dwow',
+            color='k',
+        )
+        ax.set_xscale('log')
+        ax.grid()
+
+        # ?
+        # self.widgets['trace_nr'] = trace_nr
+        # entry_var_trace_nr.set(int(trace_nr))
+        # import IPython
+        # IPython.embed()
+
+        ax.legend()
+        ax.set_xlabel('Frequency [MHz]', fontsize=8)
+        ax.set_ylabel('|A|~[-]', fontsize=8)
+        ax.set_title(
+            'FFT of trace',
+            loc='left',
+            fontsize=8,
+        )
+
+        for ax in axes:
+            ax.xaxis.set_tick_params(labelsize=8)
+            ax.yaxis.set_tick_params(labelsize=8)
+
+        fig.tight_layout()
+        figure_canvas.draw()
+
+    def ask_for_window(self):
+        print('asking for de-wow window size')
+        twin = tk.Toplevel(self.window)
+        twin.resizable(True, True)
+        self.twin = twin
+        # twin.transient(self.window)
+        twin.title("De-Wow Filter Configuration")
+
+        twin.rowconfigure(0, weight=0)
+        twin.rowconfigure(1, weight=0)
+        twin.rowconfigure(2, weight=1)
+        twin.rowconfigure(3, weight=0)
+
+        # import IPython
+        # IPython.embed()
+
+        for col in range(0, 6):
+            twin.columnconfigure(col, weight=1)
+
+        # controllers
+        label_trace_nr = tk.Label(
+            twin,
+            text='Trace nr:'
+        )
+        entry_var_trace_nr = tk.IntVar(
+            twin,
+            value=1
+        )
+        entry_trace_nr = tk.Entry(
+            twin,
+            textvariable=entry_var_trace_nr,
+        )
+
+        label_window = tk.Label(
+            twin,
+            text='Window size (ENTER to change):'
+        )
+        entry_var_window = tk.IntVar(
+            twin,
+            value=21,
+        )
+        entry_window = tk.Entry(
+            twin,
+            textvariable=entry_var_window,
+        )
+        entry_window.bind(
+            '<Return>',
+            lambda event: self._update_figure()
+        )
+        label_centerf = tk.Label(
+            twin,
+            text='Center frequency [MHz]:'
+        )
+        entry_var_centerf = tk.IntVar(
+            twin,
+            value=-1
+        )
+        entry_centerf = tk.Entry(
+            twin,
+            textvariable=entry_var_centerf,
+        )
+
+        entry_trace_nr.bind(
+            '<Return>',
+            lambda event: self._update_figure()
+        )
+
+        but_go_to_trace = tk.Button(
+            twin,
+            text='go to trace',
+            # command=lambda : self._show_trace_by_number(
+            #     proj,
+            #     int(entry_var_trace_nr.get())
+            # ),
+        )
+        but_prev = tk.Button(
+            twin,
+            text='prev trace',
+            # command=lambda : self._show_trace_by_number(
+            #     proj, trace_view['trace_nr'] - 1
+            # ),
+        )
+        but_next = tk.Button(
+            twin,
+            text='next trace',
+            # command=lambda : self._show_trace_by_number(
+            #     proj, trace_view['trace_nr'] + 1
+            # ),
+        )
+        var_keep_plot = tk.IntVar(twin, value=0)
+        check_keep_plot = tk.Checkbutton(
+            twin,
+            text='keep plot',
+            variable=var_keep_plot,
+        )
+
+        self.fig = Figure()
+        self.figure_canvas = FigureCanvasTkAgg(self.fig, twin)
+        self.toolbar = NavigationToolbar2Tk(
+            self.figure_canvas, twin, pack_toolbar=False
+        )
+        self.toolbar.update()
+
+        self.axes = [
+            # trace view
+            self.fig.add_subplot(2, 1, 1),
+            # fft
+            self.fig.add_subplot(2, 1, 2),
+        ]
+
+        self.widgets = {
+            'label_trace_nr': label_trace_nr,
+            'entry_trace_nr': entry_trace_nr,
+            'entry_var_trace_nr': entry_var_trace_nr,
+            'but_prev': but_prev,
+            'but_next': but_next,
+            'but_go_to_trace': but_go_to_trace,
+            'check_keep_plot': check_keep_plot,
+            'check_var_keep_plot': var_keep_plot,
+            'entry_window': entry_window,
+            'entry_var_window': entry_var_window,
+            'label_window': label_window,
+            'entry_centerf': entry_centerf,
+            'entry_var_centerf': entry_var_centerf,
+            'label_centerf': label_centerf,
+        }
+
+        # TODO destroy properly
+        # trace_view['widgets'] = widgets
+        # trace_view['canvas'] = figure_canvas
+        # trace_view['entry_var_trace_nr'] = entry_var_trace_nr
+        # trace_view['var_keep_plot'] = var_keep_plot
+
+        # trace_view['fig'] = fig
+        # trace_view['axes'] = axes
+
+        # construct the GUI -- place the widgets
+        self._place_widgets()
+
+        entry_trace_nr.focus()
+
+        # now draw the trace
+        self._update_figure()
+
+        print('Waiting for window to close')
+        twin.wait_window()
+        window_size = self.widgets['entry_var_window'].get()
+        print('dewow window closed, we use {} as the window size'.format(
+            window_size
+        ))
+
+        return window_size
+
+
+class TraceView(object):
+    """Show a traces with corresponding FFT. Can be used in the command line
+    """
+    def __init__(self, proj):
+        """
+        Parameters
+        ----------
+        proj:
+            the project object
+        """
+        self.proj = proj
+        self.data = proj.data
+        # self.times_ns = proj.twtt
+
+        self.fig = Figure()
+        self.axes = [
+            self.fig.add_subplot(2, 1, 1),
+            self.fig.add_subplot(2, 1, 2),
+        ]
+
+    def plot_trace(self, trace_nr, keep_plot=False):
+        """
+
+        Parameters
+        ----------
+        trace_nr : int
+            Trace nr to plot. Zero-indexed!
+        keep_plot: bool
+            If True, then do not clear previous traces from the plot
+
+        """
+        print('requested trace_nr:', trace_nr)
+        total_nr_of_traces = self.data.shape[1]
+        if trace_nr < 0:
+            print('< 0')
+            trace_nr = total_nr_of_traces + trace_nr
+            print(trace_nr)
+            if trace_nr >= total_nr_of_traces:
+                # do not try harder
+                print('bad')
+                return
+
+        # always show the largest trace
+        trace_nr = min(trace_nr, total_nr_of_traces - 1)
+        # alternative: wrap around
+        # trace_nr = trace_nr % total_nr_of_traces
+        print('Visualising trace: {}'.format(trace_nr))
+        subdata = np.array(self.proj.data[:, trace_nr]).squeeze()
+        times = self.proj.twtt * 1e-9
+        time_delta = times[1] - times[0]
+        # use at least 1e4 data points to get a smooth curve
+        # n = int(max(subdata.size, 1e4))
+        n = subdata.size
+        rfft = np.fft.rfft(
+            subdata,
+            n=n,
+        ).squeeze()
+        rfft_times = np.fft.rfftfreq(
+            n,
+            d=time_delta
+        ).squeeze()
+
+        axes = self.axes
+        fig = self.fig
+
+        ax = axes[0]
+        if not keep_plot:
+            ax.cla()
+        ax.plot(
+            times / 1e-9,
+            subdata,
+        )
+        ax.set_xlabel('Time [ns]', fontsize=8)
+        ax.grid()
+        ax.set_ylabel('Signal', fontsize=8)
+
+        ax.set_title(
+            'Trace nr: {}'.format(trace_nr),
+            loc='left',
+            fontsize=8,
+        )
+        ax = axes[1]
+        if not keep_plot:
+            ax.cla()
+        ax.plot(
+            # [Mhz]
+            rfft_times / 1e6,
+            np.abs(rfft)
+        )
+        ax.set_xscale('log')
+        ax.grid()
+
+        # import IPython
+        # IPython.embed()
+
+        ax.set_xlabel('Frequency [MHz]', fontsize=8)
+        ax.set_ylabel('|A|~[-]', fontsize=8)
+        ax.set_title(
+            'FFT of trace',
+            loc='left',
+            fontsize=8,
+        )
+
+        for ax in axes:
+            ax.xaxis.set_tick_params(labelsize=8)
+            ax.yaxis.set_tick_params(labelsize=8)
+
+        fig.tight_layout()
+        return fig, axes
+
+
+class TraceViewGUI(object):
+    """Show traces and corresponding FFT
+    """
+    def __init__(self, window_obj, proj):
+        self.proj = proj
+        self.data = proj.data
+        self.times_ns = proj.twtt
+        # TODO: rename, this is the window object of tkinter
+        self.window = window_obj
+
+        self.twin = None
+
+    def _place_widgets(self):
+        self.widgets['label_trace_nr'].grid(
+            column=0,
+            row=0,
+        )
+        self.widgets['entry_trace_nr'].grid(
+            column=1,
+            row=0,
+        )
+        self.widgets['but_go_to_trace'].grid(
+            column=2,
+            row=0,
+        )
+        self.widgets['but_prev'].grid(
+            column=3,
+            row=0,
+        )
+        self.widgets['but_next'].grid(
+            column=4,
+            row=0,
+        )
+        self.widgets['check_keep_plot'].grid(
+            column=5,
+            row=0,
+        )
+
+        self.widgets['label_centerf'].grid(column=0, row=1)
+        self.widgets['entry_centerf'].grid(column=1, row=1)
+        self.widgets['label_window'].grid(column=2, row=1)
+        self.widgets['entry_window'].grid(column=3, row=1)
+
+        self.figure_canvas.get_tk_widget().grid(
+            column=0,
+            row=2,
+            columnspan=6,
+            sticky=tk.N+tk.W+tk.S+tk.E,
+        )
+
+        self.toolbar.grid(
+            column=0,
+            row=3,
+            sticky=tk.N+tk.W,
+            columnspan=6,
+        )
+
+    def _update_figure(self):
+        trace_nr = int(
+            self.widgets['entry_var_trace_nr'].get()
+        )
+        proj = self.proj
+        print('requested trace_nr:', trace_nr)
+        total_nr_of_traces = proj.data.shape[1]
+        if trace_nr < 0:
+            print('< 0')
+            trace_nr = total_nr_of_traces + trace_nr
+            print(trace_nr)
+            if trace_nr >= total_nr_of_traces:
+                # do not try harder
+                print('bad')
+                return
+
+        # always show the largest trace
+        trace_nr = min(trace_nr, total_nr_of_traces - 1)
+        # alternative: wrap around
+        # trace_nr = trace_nr % total_nr_of_traces
+        print('Visualising trace: {}'.format(trace_nr))
+        subdata = np.array(self.data[:, trace_nr]).squeeze()
+
+        # apply dewow
+        window_length = self.widgets['entry_var_window'].get()
+        # import IPython
+        # IPython.embed()
+        subdata_dwow = tools.dewow(
+            np.matrix(
+                np.atleast_2d(subdata).T
+            ),
+            window_length
+        )
+
+        times = proj.twtt * 1e-9
+        time_delta = times[1] - times[0]
+        # use at least 1e4 data points to get a smooth curve
+        # n = int(max(subdata.size, 1e4))
+        n = subdata.size
+        rfft = np.fft.rfft(
+            subdata,
+            n=n,
+        ).squeeze()
+        rfft_times = np.fft.rfftfreq(
+            n,
+            d=time_delta
+        ).squeeze()
+
+        n_dw = subdata_dwow.squeeze().size
+        rfft_dw = np.fft.rfft(
+            subdata_dwow.squeeze(),
+            n=n_dw,
+        ).squeeze()
+        rfft_times_dw = np.fft.rfftfreq(
+            n_dw,
+            d=time_delta
+        ).squeeze()
+
+        keep_plot = bool(self.widgets['check_var_keep_plot'].get())
+        axes = self.axes
+        figure_canvas = self.figure_canvas
+        fig = self.fig
+        # entry_var_trace_nr = self.widgets['entry_var_trace_nr']
+
+        ax = axes[0]
+        if not keep_plot:
+            ax.cla()
+        ax.plot(
+            times / 1e-9,
+            subdata,
+            color='gray',
+            label='original',
+        )
+        ax.plot(
+            times / 1e-9,
+            subdata_dwow,
+            label='dewow',
+        )
+        ax.legend(fontsize=7, ncols=2)
+        ax.set_xlabel('Time [ns]', fontsize=8)
+        ax.grid()
+        ax.set_ylabel('Signal', fontsize=8)
+
+        ax.set_title(
+            'trace',
+            loc='left',
+            fontsize=8,
+        )
+        ax = axes[1]
+        if not keep_plot:
+            ax.cla()
+        ax.plot(
+            # [Mhz]
+            rfft_times / 1e6,
+            np.abs(rfft),
+            label='original',
+            color='gray',
+        )
+        ax.plot(
+            # [Mhz]
+            rfft_times_dw / 1e6,
+            np.abs(rfft_dw),
+            label='dwow',
+            color='k',
+        )
+        ax.set_xscale('log')
+        ax.grid()
+
+        # ?
+        # self.widgets['trace_nr'] = trace_nr
+        # entry_var_trace_nr.set(int(trace_nr))
+        # import IPython
+        # IPython.embed()
+
+        ax.legend()
+        ax.set_xlabel('Frequency [MHz]', fontsize=8)
+        ax.set_ylabel('|A|~[-]', fontsize=8)
+        ax.set_title(
+            'FFT of trace',
+            loc='left',
+            fontsize=8,
+        )
+
+        for ax in axes:
+            ax.xaxis.set_tick_params(labelsize=8)
+            ax.yaxis.set_tick_params(labelsize=8)
+
+        fig.tight_layout()
+        figure_canvas.draw()
+
+    def ask_for_window(self):
+        print('asking for de-wow window size')
+        twin = tk.Toplevel(self.window)
+        twin.resizable(True, True)
+        self.twin = twin
+        # twin.transient(self.window)
+        twin.title("De-Wow Filter Configuration")
+
+        twin.rowconfigure(0, weight=0)
+        twin.rowconfigure(1, weight=0)
+        twin.rowconfigure(2, weight=1)
+        twin.rowconfigure(3, weight=0)
+
+        # import IPython
+        # IPython.embed()
+
+        for col in range(0, 6):
+            twin.columnconfigure(col, weight=1)
+
+        # controllers
+        label_trace_nr = tk.Label(
+            twin,
+            text='Trace nr:'
+        )
+        entry_var_trace_nr = tk.IntVar(
+            twin,
+            value=1
+        )
+        entry_trace_nr = tk.Entry(
+            twin,
+            textvariable=entry_var_trace_nr,
+        )
+
+        label_window = tk.Label(
+            twin,
+            text='Window size (ENTER to change):'
+        )
+        entry_var_window = tk.IntVar(
+            twin,
+            value=21,
+        )
+        entry_window = tk.Entry(
+            twin,
+            textvariable=entry_var_window,
+        )
+        entry_window.bind(
+            '<Return>',
+            lambda event: self._update_figure()
+        )
+        label_centerf = tk.Label(
+            twin,
+            text='Center frequency [MHz]:'
+        )
+        entry_var_centerf = tk.IntVar(
+            twin,
+            value=-1
+        )
+        entry_centerf = tk.Entry(
+            twin,
+            textvariable=entry_var_centerf,
+        )
+
+        entry_trace_nr.bind(
+            '<Return>',
+            lambda event: self._update_figure()
+        )
+
+        but_go_to_trace = tk.Button(
+            twin,
+            text='go to trace',
+            # command=lambda : self._show_trace_by_number(
+            #     proj,
+            #     int(entry_var_trace_nr.get())
+            # ),
+        )
+        but_prev = tk.Button(
+            twin,
+            text='prev trace',
+            # command=lambda : self._show_trace_by_number(
+            #     proj, trace_view['trace_nr'] - 1
+            # ),
+        )
+        but_next = tk.Button(
+            twin,
+            text='next trace',
+            # command=lambda : self._show_trace_by_number(
+            #     proj, trace_view['trace_nr'] + 1
+            # ),
+        )
+        var_keep_plot = tk.IntVar(twin, value=0)
+        check_keep_plot = tk.Checkbutton(
+            twin,
+            text='keep plot',
+            variable=var_keep_plot,
+        )
+
+        self.fig = Figure()
+        self.figure_canvas = FigureCanvasTkAgg(self.fig, twin)
+        self.toolbar = NavigationToolbar2Tk(
+            self.figure_canvas, twin, pack_toolbar=False
+        )
+        self.toolbar.update()
+
+        self.axes = [
+            # trace view
+            self.fig.add_subplot(2, 1, 1),
+            # fft
+            self.fig.add_subplot(2, 1, 2),
+        ]
+
+        self.widgets = {
+            'label_trace_nr': label_trace_nr,
+            'entry_trace_nr': entry_trace_nr,
+            'entry_var_trace_nr': entry_var_trace_nr,
+            'but_prev': but_prev,
+            'but_next': but_next,
+            'but_go_to_trace': but_go_to_trace,
+            'check_keep_plot': check_keep_plot,
+            'check_var_keep_plot': var_keep_plot,
+            'entry_window': entry_window,
+            'entry_var_window': entry_var_window,
+            'label_window': label_window,
+            'entry_centerf': entry_centerf,
+            'entry_var_centerf': entry_var_centerf,
+            'label_centerf': label_centerf,
+        }
+
+        # TODO destroy properly
+        # trace_view['widgets'] = widgets
+        # trace_view['canvas'] = figure_canvas
+        # trace_view['entry_var_trace_nr'] = entry_var_trace_nr
+        # trace_view['var_keep_plot'] = var_keep_plot
+
+        # trace_view['fig'] = fig
+        # trace_view['axes'] = axes
+
+        # construct the GUI -- place the widgets
+        self._place_widgets()
+
+        entry_trace_nr.focus()
+
+        # now draw the trace
+        self._update_figure()
+
+        print('Waiting for window to close')
+        twin.wait_window()
+        window_size = self.widgets['entry_var_window'].get()
+        print('dewow window closed, we use {} as the window size'.format(
+            window_size
+        ))
+
+        return window_size
 
 
 class DeWowGui(object):
@@ -421,6 +1288,7 @@ class GPRPyApp:
 
         # Initialize the gprpy
         proj = gp.gprpyProfile()
+        self.proj = proj
 
         # Show splash screen
         # fig=Figure(figsize=(8*self.widfac, 5*self.highfac))
@@ -1671,11 +2539,23 @@ class GPRPyApp:
                 fig.savefig(figname, format='pdf', dpi=dpi)
                 # Put what you did in history
                 if self.asp is None:
-                    histstr = "mygpr.printProfile('%s', color='%s', contrast=%g, yrng=[%g, %g], xrng=[%g, %g], dpi=%d)" %(figname, self.color.get(), self.contrast.get(), self.yrng[0], self.yrng[1], self.xrng[0], self.xrng[1], dpi)
+                    histstr = ''.join((
+                        'mygpr.printProfile(',
+                        "'{}', color='{}', contrast={}, ".format(
+                            figname, self.color.get(), self.contrast.get()
+                        ),
+                        "yrng=[{}, {}], xrng=[{}, {}], dpi={})".format(
+                            self.yrng[0],
+                            self.yrng[1],
+                            self.xrng[0],
+                            self.xrng[1],
+                            dpi
+                        ),
+                    ))
                 else:
-                    histstr = "mygpr.printProfile('%s', color='%s', contrast=%g, yrng=[%g, %g], xrng=[%g, %g], asp=%g, dpi=%d)" %(figname, self.color.get(), self.contrast.get(), self.yrng[0], self.yrng[1], self.xrng[0], self.xrng[1], self.asp, dpi)
+                    histstr = "mygpr.printProfile('%s', color='%s', contrast=%g, yrng=[%g, %g], xrng=[%g, %g], asp=%g, dpi=%d)" % (figname, self.color.get(), self.contrast.get(), self.yrng[0], self.yrng[1], self.xrng[0], self.xrng[1], self.asp, dpi)
                 proj.history.append(histstr)
-        print("Saved figure as %s" %(figname+'.pdf'))
+        print("Saved figure as %s" % (figname + '.pdf'))
 
     def getDelimiter(self):
         commaQuery = tk.Toplevel(self.window)
@@ -1687,8 +2567,10 @@ class GPRPyApp:
         )
         text.pack(padx=10, pady=10)
         commaButton = tk.Button(
-            commaQuery, text="comma", width=10,
-            command = lambda: [
+            commaQuery,
+            text="comma",
+            width=10,
+            command=lambda: [
                 self.setComma(),
                 commaQuery.destroy()
             ]
